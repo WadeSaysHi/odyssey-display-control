@@ -1,0 +1,25 @@
+name: Check and build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm audit
+      - run: npm run test:ui
+      - run: npm run dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ runner.os }}-${{ runner.arch }}
+          path: dist/*.zip

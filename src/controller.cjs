@@ -1,0 +1,195 @@
+const { EventEmitter } = require('node:events');
+const transport = require('./transport.cjs');
+const PORTS = {
+  USB_C: { key: 'usb-c', label: 'USB-C', ip: 'USB-C' },
+  DISPLAYPORT: { key: 'displayport', label: 'DisplayPort', ip: 'DISPLAY PORT' },
+  HDMI1: { key: 'hdmi', label: 'HDMI', ip: 'HDMI1' },
+};
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const messages = {
+  INVALID_IP: 'Enter a private IPv4 address from your local network.',
+  OFFLINE: 'Cannot reach the monitor. Check its power and network, then reconnect.',
+  CERTIFICATE: 'The monitor certificate changed. Forget this connection and pair again after checking the address.',
+  IDENTITY: 'A different device answered at this address. Check the address or forget this connection.',
+  PAIRING: 'Pairing was denied or expired. Choose Pair and allow access on the monitor.',
+  STORAGE: 'Secure credential storage is unavailable. Unlock your OS credential store and try again.',
+  PROTOCOL: 'The monitor returned an unsupported response. Try reconnecting.',
+  VERIFY: 'The requested input could not be confirmed. The displayed input is the latest observed state.',
+  BUSY: 'Wait for the current operation to finish.',
+};
+function parseSources(answer) {
+  if (String(answer?.statusCode) !== '100' || !Array.isArray(answer.response)) throw transport.fail('PROTOCOL');
+  const sources = [];
+  for (const item of answer.response) {
+    if (typeof item.sourceId !== 'string') continue;
+    const port = PORTS[item.sourceId.split('@').pop()];
+    if (!port) continue;
+    if (sources.some(x => x.key === port.key)) throw transport.fail('PROTOCOL');
+    sources.push({ ...port, id: item.sourceId, current: String(item.currentSource).toLowerCase() === 'true' });
+  }
+  if (!sources.length || sources.filter(x => x.current).length > 1) throw transport.fail('PROTOCOL');
+  return sources;
+}
+
+class Controller extends EventEmitter {
+  constructor(store, io = transport, options = {}) {
+    super(); this.store = store; this.io = io; this.options = options;
+    this.state = { host: '', paired: false, status: 'setup', current: null, sources: [], updatedAt: null,
+      busy: false, message: 'Connect your monitor to get started.', verification: null, autoConfirm: true };
+  }
+  snapshot() { return structuredClone(this.state); }
+  update(patch) { Object.assign(this.state, patch); this.emit('state', this.snapshot()); }
+  async init() {
+    this.timer = setInterval(() => void this.poll(), this.options.pollMs || 3000);
+    this.record = await this.store.load();
+    if (this.record) this.update({ host: this.record.host, paired: true, status: 'offline', message: 'Connecting…', autoConfirm: this.record.autoConfirm ?? true });
+    await this.poll();
+    if (this.state.status === 'online') this.update({ message: 'Connected. Current input refreshed.' });
+  }
+  async exclusive(work) {
+    if (this.state.busy) return { ok: false, code: 'BUSY', message: messages.BUSY };
+    this.update({ busy: true });
+    try {
+      while (this.polling) await delay(10);
+      await work(); return { ok: true };
+    }
+    catch (error) {
+      const code = messages[error.code] ? error.code : 'OFFLINE';
+      if (['OFFLINE', 'IDENTITY', 'CERTIFICATE'].includes(code)) {
+        this.mobile?.close(); this.mobile = null;
+        this.update({ status: 'offline', current: null, sources: [], updatedAt: null });
+      }
+      this.update({ message: messages[code], verification: null });
+      return { ok: false, code, message: messages[code] };
+    } finally { this.update({ busy: false }); }
+  }
+  async pair(value, options = {}) {
+    return this.exclusive(async () => {
+      const host = this.io.validateHost(value);
+      const device = await this.io.probe(host);
+      if (this.record && device.identity !== this.record.identity) throw transport.fail('IDENTITY');
+      if (this.record && device.mobilePin !== this.record.mobilePin) throw transport.fail('CERTIFICATE');
+      const ipPin = await this.io.fingerprint(host, 1516);
+      if (this.record && ipPin !== this.record.ipPin) throw transport.fail('CERTIFICATE');
+      let remote, confirmTimer, result;
+      try {
+        if (options.autoConfirm) {
+          this.update({ message: this.record?.remoteToken ? 'Reusing your authorized remote connection…' : 'Allow this app’s remote connection on the monitor once…' });
+          remote = new this.io.Remote(host, device.mobilePin, this.record?.remoteToken, this.record?.remoteName);
+          await remote.connect();
+        }
+        this.update({ message: remote ? 'Pairing… The authorized remote will send one OK if the request remains pending.' : 'Allow the pairing request on your monitor…' });
+        const request = this.io.ipCall(host, ipPin, 'createAccessToken', null, 45000);
+        if (remote) confirmTimer = setTimeout(() => remote.confirmPairing(), this.options.confirmDelayMs || 2000);
+        result = await request;
+      } finally { clearTimeout(confirmTimer); remote?.close(); }
+      if (typeof result.AccessToken !== 'string' || !result.AccessToken) throw transport.fail('PAIRING');
+      const record = { ...device, host, ipPin, token: result.AccessToken, autoConfirm: Boolean(options.autoConfirm),
+        ...(this.record?.remoteName ? { remoteName: this.record.remoteName } : {}),
+        ...(remote?.token ? { remoteToken: remote.token } : this.record?.remoteToken ? { remoteToken: this.record.remoteToken } : {}) };
+      await this.store.save(record);
+      this.mobile?.close(); this.mobile = null; this.record = record;
+      this.update({ host, paired: true, current: null, sources: [], updatedAt: null, autoConfirm: record.autoConfirm });
+      await this.refresh();
+      this.update({ message: 'Paired. Choose an input.' });
+    });
+  }
+  async reconnect(value) {
+    return this.exclusive(async () => {
+      if (!this.record) throw transport.fail('PAIRING');
+      const host = this.io.validateHost(value);
+      const device = await this.io.probe(host);
+      if (device.identity !== this.record.identity) throw transport.fail('IDENTITY');
+      if (device.mobilePin !== this.record.mobilePin) throw transport.fail('CERTIFICATE');
+      const ipPin = await this.io.fingerprint(host, 1516);
+      if (ipPin !== this.record.ipPin) throw transport.fail('CERTIFICATE');
+      const record = { ...this.record, host };
+      await this.store.save(record);
+      this.mobile?.close(); this.mobile = null; this.record = record;
+      this.update({ host, current: null, updatedAt: null, verification: null });
+      await this.refresh(); this.update({ message: 'Connected. Current input refreshed.' });
+    });
+  }
+  async forget() {
+    return this.exclusive(async () => {
+      await this.store.clear(); this.record = null; this.mobile?.close(); this.mobile = null;
+      this.update({ host: '', paired: false, status: 'setup', current: null, sources: [], updatedAt: null,
+        verification: null, message: 'Connection forgotten. Pair to connect again.' });
+    });
+  }
+  async refresh() {
+    if (!this.record) return;
+    try {
+      if (!this.mobile) {
+        const device = await this.io.probe(this.record.host);
+        if (device.identity !== this.record.identity) throw transport.fail('IDENTITY');
+        if (device.mobilePin !== this.record.mobilePin) throw transport.fail('CERTIFICATE');
+        this.mobile = new this.io.Mobile(this.record.host, this.record.mobilePin);
+      }
+      const sources = parseSources(await this.mobile.request('get.extsources'));
+      const current = sources.find(x => x.current)?.key || null;
+      // Only allow known input keys and labels across the renderer boundary.
+      this.update({ status: 'online', current, sources: sources.map(({ key, label }) => ({ key, label })), updatedAt: Date.now() });
+      return sources;
+    } catch (error) {
+      this.mobile?.close(); this.mobile = null;
+      this.update({ status: 'offline', current: null, sources: [], updatedAt: null, verification: null });
+      throw error;
+    }
+  }
+  async poll() {
+    if (!this.record || this.state.busy || this.polling) return;
+    this.polling = true;
+    try {
+      const before = this.state.current;
+      await this.refresh();
+      if (before && before !== this.state.current) this.update({ verification: null, message: 'Input changed outside the app. Current input updated.' });
+    } catch (error) {
+      this.update({ message: messages[error.code] || messages.OFFLINE });
+    } finally { this.polling = false; }
+  }
+  async switchSource(key) {
+    return this.exclusive(async () => {
+      if (!this.record) throw transport.fail('PAIRING');
+      if (!Object.values(PORTS).some(x => x.key === key)) throw transport.fail('PROTOCOL');
+      const rows = await this.refresh();
+      const target = rows.find(x => x.key === key);
+      if (!target) throw transport.fail('PROTOCOL');
+      this.update({ message: `Confirming ${target.label}…`, verification: null });
+      if (!target.current) {
+        try {
+          const ack = await this.mobile.request('launch.extsource', { requestId: target.id });
+          if (String(ack.statusCode) !== '100' || ack.response?.status !== 'ok') throw transport.fail('VERIFY');
+        } catch (error) {
+          if (error.code === 'VERIFY') throw error;
+          // A lost acknowledgement must not cause a repeated write. Read instead.
+        }
+      }
+      const deadline = Date.now() + (this.options.verifyMs || 20000);
+      let matches = 0, independent = false;
+      while (Date.now() < deadline) {
+        await delay(this.options.sampleMs || 1000);
+        try {
+          const fresh = await this.refresh();
+          let agrees = true; independent = false;
+          try {
+            const tv = await this.io.ipCall(this.record.host, this.record.ipPin, 'getTVStates', this.record.token);
+            agrees = tv.inputSource === target.ip; independent = agrees;
+          } catch (error) {
+            if (error.code === 'CERTIFICATE') throw error;
+            // IP Control can transiently refuse reads during a source transition.
+          }
+          matches = fresh.find(x => x.key === key)?.current && agrees ? matches + 1 : 0;
+          if (matches >= 2) {
+            this.update({ verification: independent ? 'dual' : 'mobile',
+              message: `${target.label} confirmed${independent ? ' by both local state APIs' : ' by two fresh monitor reads'}.` });
+            return;
+          }
+        } catch (error) { if (error.code === 'CERTIFICATE') throw error; matches = 0; }
+      }
+      throw transport.fail('VERIFY');
+    });
+  }
+  close() { clearInterval(this.timer); this.mobile?.close(); }
+}
+module.exports = { Controller, parseSources, messages };
