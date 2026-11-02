@@ -27,6 +27,23 @@
       <button class="source" data-source="hdmi" disabled><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M12 13h16c5 0 8 14 6 17-3 4-8-4-10-4h-8c-2 0-7 8-10 4-2-3 1-17 6-17Z"/><path d="M13 17v8M9 21h8M27 18v1M30 22v1"/></svg><span class="source-name">HDMI</span><span class="source-detail">Console or device</span><span class="source-status">Connect to select</span></button>
     </section>
     <div class="result" role="status" aria-live="polite" aria-atomic="true"><span id="result-icon" aria-hidden="true">●</span><p id="message">Connect your monitor to get started.</p></div>
+    <section class="signal-panel" aria-labelledby="signal-heading">
+      <div class="panel-heading"><h2 id="signal-heading">Input Signal Information</h2><button id="refresh-information" class="secondary">Refresh</button></div>
+      <div class="signal-grid" id="signal-grid"></div>
+      <p class="signal-note">Hz describes the queried display mode, not real-time FPS. Monitor live timing, VRR and HDR remain unknown without a verified query.</p>
+      <div class="query-status"><span id="monitor-query-status">Monitor: not queried</span><span id="computer-query-status">This Computer: not queried</span></div>
+      <p id="information-error" class="query-error" role="status"></p>
+      <details class="computer-details"><summary>This Computer output and input association</summary>
+        <p id="computer-output" class="hint">Computer display information is unavailable.</p>
+        <p class="hint">OS output describes this computer. It cannot describe another device’s active input. Associate the display and connected port to use it in the current-input fields.</p>
+        <div class="association-row"><label>Connected input<select id="computer-input"><option value="">Not associated</option><option value="usb-c">USB-C</option><option value="displayport">DisplayPort</option><option value="hdmi">HDMI</option></select></label><label>Local display<select id="computer-display"></select></label><button id="save-association" class="secondary">Save association</button></div>
+      </details>
+    </section>
+    <section class="layered-settings" aria-label="Monitor settings">
+      <details><summary>Sound and volume<span>Monitor</span></summary><div id="sound-controls" class="control-grid"></div></details>
+      <details><summary>Picture<span>Monitor</span></summary><p class="hint">Backlight is the monitor’s raw API scale. It has not been calibrated to panel luminance or the monitor menu’s brightness label. Changes apply to the current input.</p><div id="picture-controls" class="control-grid"></div></details>
+      <details><summary>Advanced capabilities<span>Monitor</span></summary><div class="capability-row"><span>Brightness (raw API)</span><strong id="brightness-raw">Unknown</strong></div><p class="hint">A raw brightness value is not verified panel brightness.</p><div class="capability-row"><span>Gamma</span><strong>Unavailable</strong></div><div class="capability-row"><span>HDR tone mapping</span><strong>Unavailable</strong></div><p class="hint">Gamma and HDR tone-mapping methods were not exposed during hardware testing. Picture-mode and sound-mode option lists are unavailable, so these modes are read-only.</p></details>
+    </section>
     <footer><span>Local network only</span><span id="verification">Every switch is checked on the monitor</span></footer>
   </main>
 
@@ -44,6 +61,7 @@
       <p class="hint">Self-signed monitor certificates are pinned on first pairing. Pair only on a trusted local network.</p>
     </form>
   </dialog>
+  <script src="information.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

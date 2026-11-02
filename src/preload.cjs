@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('monitor', Object.freeze({
   reconnect: host => ipcRenderer.invoke('monitor:reconnect', host),
   switch: key => ipcRenderer.invoke('monitor:switch', key),
   forget: () => ipcRenderer.invoke('monitor:forget'),
+  refreshInformation: () => ipcRenderer.invoke('monitor:information'),
+  setSetting: (key, value) => ipcRenderer.invoke('monitor:setting', { key, value }),
+  associateComputer: (input, displayKey) => ipcRenderer.invoke('monitor:associate', { input, displayKey }),
   onState: callback => {
     const handler = (_event, state) => callback(state);
     ipcRenderer.on('monitor:state', handler);

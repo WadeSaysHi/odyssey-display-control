@@ -8,7 +8,7 @@ const t = require('./transport.cjs');
 async function diagnose({ win, controller, safeStorage }) {
   const folder = path.join(os.tmpdir(), 'odyssey-controller-diagnostics');
   await fs.mkdir(folder, { recursive: true });
-  const report = { platform: process.platform, encryption: false, storageRoundTrip: false, rendered: false, hardwareRead: null };
+  const report = { platform: process.platform, encryption: false, storageRoundTrip: false, rendered: false, hardwareRead: null, computerDisplayQuery: false, signalSection: false };
   try {
     const store = new Store(path.join(folder, 'test-store'), safeStorage);
     report.encryption = await safeStorage.isAsyncEncryptionAvailable();
@@ -20,12 +20,14 @@ async function diagnose({ win, controller, safeStorage }) {
     if (hostArg) {
       const host = t.validateHost(hostArg.slice('--monitor-host='.length));
       const device = await t.probe(host);
-      controller.record = { host, ...device };
+      controller.record = { host, ...device, ipPin: await t.fingerprint(host, 1516) };
       controller.update({ paired: true });
       await controller.refresh();
       controller.update({ message: 'Connected. Current input refreshed.' });
       report.hardwareRead = Boolean(controller.state.current);
     }
+    await controller.information.read();
+    report.computerDisplayQuery = controller.information.snapshot().computerFresh;
     if (win.webContents.isLoading()) await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
     win.webContents.send('monitor:state', controller.snapshot());
     if (hostArg) await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
@@ -34,6 +36,7 @@ async function diagnose({ win, controller, safeStorage }) {
     })`);
     await win.webContents.executeJavaScript('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
     report.rendered = await win.webContents.executeJavaScript("document.querySelector('h1').textContent === 'Odyssey OLED G8' && typeof window.require === 'undefined' && !!window.monitor");
+    report.signalSection = await win.webContents.executeJavaScript("document.querySelectorAll('.signal-item').length === 7 && !!document.querySelector('#refresh-information')");
     await fs.writeFile(path.join(folder, 'desktop.png'), (await win.webContents.capturePage()).toPNG());
   } catch (error) { report.error = error.code || 'DIAGNOSTIC_FAILURE'; }
   finally {

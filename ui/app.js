@@ -3,6 +3,7 @@ const labels = { 'usb-c': 'USB-C', displayport: 'DisplayPort', hdmi: 'HDMI' };
 let state, pending = false, receivedEvent = false;
 const settings = $('settings');
 function freshness() {
+  if (state?.information) renderInformation(state, state.busy || pending);
   if (!state?.updatedAt) return;
   const seconds = Math.max(0, Math.floor((Date.now() - state.updatedAt) / 1000));
   $('freshness').textContent = seconds < 2 ? 'Just checked on the monitor' : `Last checked ${seconds}s ago`;
@@ -34,6 +35,7 @@ function render(next) {
   $('reconnect').hidden = !state.paired;
   for (const id of ['pair', 'reconnect', 'forget', 'host', 'close', 'auto-confirm']) $(id).disabled = busy;
   $('pair').textContent = busy ? 'Please wait…' : state.paired ? 'Pair again' : 'Pair monitor';
+  renderInformation(state, busy);
 }
 async function act(action, closeOnSuccess = false) {
   if (pending || state?.busy) return;
@@ -56,6 +58,8 @@ $('settings-form').addEventListener('submit', event => { event.preventDefault();
 $('reconnect').addEventListener('click', () => void act(() => window.monitor.reconnect($('host').value), true));
 $('forget').addEventListener('click', () => void act(() => window.monitor.forget()));
 document.querySelectorAll('[data-source]').forEach(button => button.addEventListener('click', () => void act(() => window.monitor.switch(button.dataset.source))));
+$('refresh-information').addEventListener('click', () => void act(() => window.monitor.refreshInformation()));
+$('save-association').addEventListener('click', () => void act(() => window.monitor.associateComputer($('computer-input').value, $('computer-display').value)));
 window.monitor.onState(next => { receivedEvent = true; render(next); });
 window.monitor.state().then(initial => { if (!receivedEvent) render(initial); });
 setInterval(freshness, 1000);

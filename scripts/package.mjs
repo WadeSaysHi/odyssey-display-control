@@ -12,7 +12,7 @@ const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json')));
 const stage = path.join(root, '.local', `stage-${platform}-${arch}`);
 await fs.rm(stage, { recursive: true, force: true });
 await fs.mkdir(stage, { recursive: true });
-for (const name of ['src', 'ui', 'LICENSE']) await fs.cp(path.join(root, name), path.join(stage, name), { recursive: true });
+for (const name of ['src', 'ui', 'native', 'LICENSE']) await fs.cp(path.join(root, name), path.join(stage, name), { recursive: true });
 await fs.mkdir(path.join(stage, 'node_modules'), { recursive: true });
 await fs.cp(path.join(root, 'node_modules/ws'), path.join(stage, 'node_modules/ws'), { recursive: true });
 await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: pkg.name, productName: pkg.productName, version: pkg.version, main: pkg.main, license: pkg.license, author: pkg.author, description: pkg.description }));
@@ -24,7 +24,7 @@ const results = await packager({ dir: stage, out: path.join(root, 'dist'),
   appVersion: pkg.version, platform, arch, electronVersion: pkg.devDependencies.electron,
   ...(hasLocalZip ? { electronZipDir: path.dirname(localZip) } : {}),
   icon: path.join(root, 'assets', platform === 'darwin' ? 'icon.icns' : 'icon.ico'),
-  asar: true, prune: false, overwrite: true, osxSign: false, osxNotarize: false,
+  asar: { unpackDir: 'native' }, prune: false, overwrite: true, osxSign: false, osxNotarize: false,
 });
 if (args.includes('--zip')) {
   const name = `odyssey-controller-${pkg.version}-${platform}-${arch}.zip`;

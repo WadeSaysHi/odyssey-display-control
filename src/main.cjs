@@ -3,6 +3,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { Controller, messages } = require('./controller.cjs');
 const { Store } = require('./store.cjs');
+const { queryDisplays } = require('./local-display.cjs');
 
 app.setName('Odyssey OLED G8 Controller');
 app.setPath('userData', path.join(app.getPath('appData'), app.isPackaged ? 'Odyssey OLED G8 Controller' : 'Odyssey OLED G8 Controller Development'));
@@ -18,7 +19,7 @@ else {
       dialog.showErrorBox('Unsupported system', 'This app supports macOS and Windows.'); app.quit(); return;
     }
     const store = new Store(app.getPath('userData'), safeStorage);
-    controller = new Controller(store);
+    controller = new Controller(store, undefined, { queryDisplays });
     const page = pathToFileURL(path.join(__dirname, '../ui/index.html')).href;
     for (const [name, action] of Object.entries({
       state: () => controller.snapshot(),
@@ -26,12 +27,15 @@ else {
       reconnect: host => controller.reconnect(host),
       switch: key => controller.switchSource(key),
       forget: () => controller.forget(),
+      information: () => controller.refreshInformation(),
+      setting: value => controller.setSetting(value?.key, value?.value),
+      associate: value => controller.associateComputer(value?.input, value?.displayKey),
     })) ipcMain.handle(`monitor:${name}`, (event, value) => {
       if (event.sender !== win?.webContents || event.senderFrame?.url !== page) throw new Error('Untrusted sender');
       return action(value);
     });
     const createWindow = () => {
-      win = new BrowserWindow({ width: 920, height: 740, minWidth: 680, minHeight: 650,
+      win = new BrowserWindow({ width: 960, height: 960, minWidth: 680, minHeight: 720,
         title: app.getName(), backgroundColor: '#e9edf2',
         webPreferences: { preload: path.join(__dirname, 'preload.cjs'), sandbox: true,
           contextIsolation: true, nodeIntegration: false, webSecurity: true } });

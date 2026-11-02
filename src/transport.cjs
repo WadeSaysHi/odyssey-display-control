@@ -72,11 +72,12 @@ async function probe(host) {
   return { identity, mobilePin };
 }
 
-async function ipCall(host, pin, method, token, timeout) {
+async function ipCall(host, pin, method, token, timeout, parameters = {}) {
   const body = { jsonrpc: '2.0', id: 1, method };
-  if (token) body.params = { AccessToken: token };
+  if (token) body.params = { ...parameters, AccessToken: token };
   const answer = await jsonRequest(host, 1516, '/', body, pin, timeout);
-  if (answer.error) throw fail(answer.error.code === -32002 ? 'STATE_TRANSITION' : 'PAIRING');
+  const code = answer.error?.code ?? answer.code;
+  if (code) throw fail(code === -32601 ? 'UNSUPPORTED' : code === -32002 ? 'STATE_TRANSITION' : 'PAIRING');
   if (!answer.result) throw fail('PROTOCOL');
   return answer.result;
 }

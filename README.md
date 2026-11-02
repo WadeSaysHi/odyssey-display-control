@@ -8,6 +8,8 @@ Credentials and connection details are encrypted using macOS Keychain or Windows
 
 **Auto-confirm pairing** uses an authorized remote connection to send one OK when this app’s pairing request remains pending. First remote approval is manual. This is timing-based; it does not inspect or dismiss unrelated monitor dialogs. Disable it in connection settings if preferred.
 
+Compact signal information identifies Monitor and This Computer sources, with timestamps and Refresh. Layered sound and picture settings verify writes by read-back. HDR, VRR, gamma and tone-mapping limitations are explicit. [Details](docs/information-and-settings.md).
+
 ## Run
 
 Download a ZIP from [Releases](https://github.com/WadeSaysHi/odyssey-oled-g8-controller/releases). Extract it and open the app. Builds are unsigned and not notarized; macOS or Windows may require manual approval. macOS releases target Apple silicon; Windows releases target x64.

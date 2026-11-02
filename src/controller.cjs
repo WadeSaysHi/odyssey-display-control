@@ -1,5 +1,6 @@
 const { EventEmitter } = require('node:events');
 const transport = require('./transport.cjs');
+const { Information } = require('./information.cjs');
 const PORTS = {
   USB_C: { key: 'usb-c', label: 'USB-C', ip: 'USB-C' },
   DISPLAYPORT: { key: 'displayport', label: 'DisplayPort', ip: 'DISPLAY PORT' },
@@ -16,6 +17,11 @@ const messages = {
   PROTOCOL: 'The monitor returned an unsupported response. Try reconnecting.',
   VERIFY: 'The requested input could not be confirmed. The displayed input is the latest observed state.',
   BUSY: 'Wait for the current operation to finish.',
+  UNSUPPORTED: 'This control is unavailable from the monitor in the current mode.',
+  INVALID_SETTING: 'Choose a value within the supported control range.',
+  SETTING_CONTEXT: 'The input changed during the operation. Refresh before changing settings.',
+  SETTING_VERIFY: 'The monitor did not confirm the requested setting. Refresh to check its actual value.',
+  STATE_TRANSITION: 'The monitor is changing state or has locked this control. Refresh and try again.',
 };
 function parseSources(answer) {
   if (String(answer?.statusCode) !== '100' || !Array.isArray(answer.response)) throw transport.fail('PROTOCOL');
@@ -36,9 +42,11 @@ class Controller extends EventEmitter {
     super(); this.store = store; this.io = io; this.options = options;
     this.state = { host: '', paired: false, status: 'setup', current: null, sources: [], updatedAt: null,
       busy: false, message: 'Connect your monitor to get started.', verification: null, autoConfirm: true };
+    this.information = new Information(this, options.queryDisplays);
+    this.state.information = this.information.snapshot();
   }
   snapshot() { return structuredClone(this.state); }
-  update(patch) { Object.assign(this.state, patch); this.emit('state', this.snapshot()); }
+  update(patch) { Object.assign(this.state, patch); this.state.information = this.information.snapshot(); this.emit('state', this.snapshot()); }
   async init() {
     this.timer = setInterval(() => void this.poll(), this.options.pollMs || 3000);
     this.record = await this.store.load();
@@ -85,6 +93,7 @@ class Controller extends EventEmitter {
       } finally { clearTimeout(confirmTimer); remote?.close(); }
       if (typeof result.AccessToken !== 'string' || !result.AccessToken) throw transport.fail('PAIRING');
       const record = { ...device, host, ipPin, token: result.AccessToken, autoConfirm: Boolean(options.autoConfirm),
+        ...(this.record?.association ? { association: this.record.association } : {}),
         ...(this.record?.remoteName ? { remoteName: this.record.remoteName } : {}),
         ...(remote?.token ? { remoteToken: remote.token } : this.record?.remoteToken ? { remoteToken: this.record.remoteToken } : {}) };
       await this.store.save(record);
@@ -113,6 +122,7 @@ class Controller extends EventEmitter {
   async forget() {
     return this.exclusive(async () => {
       await this.store.clear(); this.record = null; this.mobile?.close(); this.mobile = null;
+      this.information.invalidate();
       this.update({ host: '', paired: false, status: 'setup', current: null, sources: [], updatedAt: null,
         verification: null, message: 'Connection forgotten. Pair to connect again.' });
     });
@@ -128,6 +138,7 @@ class Controller extends EventEmitter {
       }
       const sources = parseSources(await this.mobile.request('get.extsources'));
       const current = sources.find(x => x.current)?.key || null;
+      if (current !== this.state.current) this.information.invalidate();
       // Only allow known input keys and labels across the renderer boundary.
       this.update({ status: 'online', current, sources: sources.map(({ key, label }) => ({ key, label })), updatedAt: Date.now() });
       return sources;
@@ -138,15 +149,44 @@ class Controller extends EventEmitter {
     }
   }
   async poll() {
-    if (!this.record || this.state.busy || this.polling) return;
+    if (this.state.busy || this.polling) return;
     this.polling = true;
     try {
       const before = this.state.current;
-      await this.refresh();
+      if (this.record) await this.refresh();
       if (before && before !== this.state.current) this.update({ verification: null, message: 'Input changed outside the app. Current input updated.' });
     } catch (error) {
       this.update({ message: messages[error.code] || messages.OFFLINE });
-    } finally { this.polling = false; }
+    } finally {
+      try { if (Date.now() - this.information.lastAttempt > 15000) await this.information.read(); }
+      finally { this.polling = false; }
+    }
+  }
+  refreshInformation() {
+    return this.exclusive(async () => {
+      try { if (this.record) await this.refresh(); }
+      finally { await this.information.read(); }
+    });
+  }
+  setSetting(key, value) {
+    return this.exclusive(async () => {
+      try { await this.information.set(key, value); }
+      catch (error) {
+        this.information.report.monitor.status = 'unavailable';
+        this.information.report.monitor.error = messages[error.code] || messages.SETTING_VERIFY;
+        this.information.publish(); throw error;
+      }
+    });
+  }
+  associateComputer(input, displayKey) {
+    return this.exclusive(async () => {
+      if (!this.record) throw transport.fail('PAIRING');
+      if (input !== '' && (!Object.values(PORTS).some(port => port.key === input) ||
+        !this.information.report.computer.displays.some(d => d.key === displayKey) || this.information.report.computer.status !== 'fresh')) throw transport.fail('INVALID_SETTING');
+      const record = { ...this.record, association: input ? { input, displayKey } : null };
+      await this.store.save(record); this.record = record;
+      this.update({ message: input ? 'This computer display and input association saved.' : 'Computer association cleared.' });
+    });
   }
   async switchSource(key) {
     return this.exclusive(async () => {
