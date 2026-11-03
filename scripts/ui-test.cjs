@@ -63,8 +63,11 @@ async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const 
     await page.locator('#connection').click();await page.screenshot({path:path.join(__dirname,'../artifacts/connection-layout-sheet.png')});await page.locator('#close').click();
     const wheel = page.getByRole('spinbutton', { name: 'Volume' });
     await page.waitForFunction(() => document.querySelector('#volume-wheel').getAttribute('aria-valuenow') === '15');
+    const stableRow=await page.locator('#wheel-lines [data-value="15"]').elementHandle();
     await wheel.focus(); await page.keyboard.press('ArrowUp'); assert.equal(await wheel.getAttribute('aria-valuenow'), '16');
-    await send(); assert.equal(await wheel.getAttribute('aria-valuenow'), '16');
+    await send();assert.equal(await stableRow.evaluate(n=>n===document.querySelector('#wheel-lines [data-value="15"]')),true);
+    await page.waitForFunction(()=>Math.abs(new DOMMatrixReadOnly(getComputedStyle(document.querySelector('#wheel-lines')).transform).m42+588)<.2);
+    assert.equal(await wheel.getAttribute('aria-valuenow'), '16');
     await page.locator('#apply-volume').click(); assert.deepEqual(await app.evaluate(() => globalThis.uiLastSetting), { key: 'volume', value: 16, input: 'usb-c', deviceId: initial.deviceId });
     report.monitor.controls.volume = report.monitor.values.volume = 16; await send();
     // A slow action stays attached to its original display; its completion cannot clear another target's draft.
@@ -81,7 +84,7 @@ async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const 
     await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('monitor:setting');ipcMain.handle('monitor:setting',(_e,value)=>{globalThis.uiLastSetting=value;return {ok:true};});});
     await wheel.focus(); await page.keyboard.press('End'); await page.keyboard.press('ArrowUp'); assert.equal(await wheel.getAttribute('aria-valuenow'), '100');
     await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown'); assert.equal(await wheel.getAttribute('aria-valuenow'), '0');
-    await wheel.locator('button').last().click(); assert.equal(await wheel.getAttribute('aria-valuenow'), '2');
+    await wheel.locator('[data-value="2"]').click(); assert.equal(await wheel.getAttribute('aria-valuenow'), '2');
     const box = await wheel.boundingBox(); await page.mouse.move(box.x + 70, box.y + 130); await page.mouse.down(); await page.mouse.move(box.x + 70, box.y + 82, { steps: 4 }); await page.mouse.up();
     assert.ok(Number(await wheel.getAttribute('aria-valuenow')) > 2);
     report.monitor.at = Date.now() - 31000; await send(); assert.equal(await wheel.getAttribute('aria-disabled'), 'true');
@@ -119,7 +122,7 @@ async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const 
     await send(); assert.equal(await page.getByLabel('Contrast', { exact: true }).inputValue(), '49');
     await page.locator('[data-page="appearance"]').click(); await page.locator('[data-theme="dark"]').click();
     await page.waitForFunction(() => document.body.classList.contains('night')); assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), 'dark');
-    await page.locator('#hide-sound').check();await page.waitForFunction(()=>document.body.classList.contains('hide-sound'));assert.equal(await page.locator('.inspector').isVisible(),false);await page.locator('#hide-sound').uncheck();
+    await page.locator('#hide-sound').check();await page.waitForFunction(()=>document.body.classList.contains('hide-sound'));await page.locator('.inspector').waitFor({state:'hidden'});await page.locator('#hide-sound').uncheck();
     await page.locator('#always-scrollbars').check(); await page.waitForFunction(() => document.body.classList.contains('always-scrollbars'));
     await page.locator('[data-page="monitor"]').click(); await page.locator('.computer-details summary').click(); await page.setViewportSize({ width: 900, height: 650 });
     await page.locator('[data-page="remote"]').click();

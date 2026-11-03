@@ -12,17 +12,8 @@ function ageText(block, fresh) {
 }
 function paintWheel(direction = 0) {
   const wheel = $('volume-wheel'); wheel.setAttribute('aria-disabled', String(!volumeEnabled));
-  if (volumeDraft === null) { wheel.removeAttribute('aria-valuenow'); $('wheel-lines').textContent = '—'; }
-  else {
-    wheel.setAttribute('aria-valuenow', volumeDraft);
-    const lines = [-2, -1, 0, 1, 2].map(step => {
-      const n = volumeDraft + step, button = element('button', step === 0 ? 'chosen' : Math.abs(step) === 2 ? 'away' : '', n < 0 || n > 100 ? '' : n);
-      button.tabIndex = -1; button.disabled = !volumeEnabled || n < 0 || n > 100;
-      button.addEventListener('click', () => { if (!wheelDragging) changeVolume(step); }); return button;
-    });
-    $('wheel-lines').replaceChildren(...lines);
-    if (direction && !matchMedia('(prefers-reduced-motion: reduce)').matches) $('wheel-lines').animate([{ transform: `translateY(${direction > 0 ? 15 : -15}px)` }, { transform: 'translateY(0)' }], { duration: 180, easing: 'ease-out' });
-  }
+  if(volumeDraft===null)wheel.removeAttribute('aria-valuenow');else wheel.setAttribute('aria-valuenow',volumeDraft);
+  Motion.wheel($('wheel-lines'),volumeDraft,!!volumeEnabled,n=>{if(!wheelDragging)changeVolume(n-volumeDraft);},controlContext);
   $('apply-volume').disabled = !volumeEnabled || !volumeDirty;
   $('volume-draft').textContent = !volumeEnabled ? volumeReason || 'Unavailable or stale · Refresh' : volumeDirty ? `Draft ${volumeDraft} · Monitor ${lastVolume}` : `Monitor value ${lastVolume}`;
 }

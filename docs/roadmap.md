@@ -270,3 +270,7 @@ Implemented configurable display family, artwork aspect ratio and explicit yes/n
 ## v0.5.1 Windows control-profile fix
 
 Read-only control profiles now have an explicit Save controls action independent of pairing. Disabled controls explain the relevant profile, speaker or freshness condition. Windows diagnosis confirmed that choosing a display family and speakers alone does not change the control profile. Existing secure authorization is preserved.
+
+## v0.5.2 motion refinement
+
+Persistent spring-driven wheel tracks replace row reconstruction in both windows. Sidebar selection slides between tabs; sound visibility animates layout, opacity and panel height. Reversal preserves current motion; reduced-motion preferences snap transitions. No monitor protocol or credential changes.

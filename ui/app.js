@@ -98,7 +98,7 @@ function fillConnection() {
 }
 function openConnection() {
   stopKeyboard();
-  if (!settings.open) { fillConnection(); settings.showModal(); }
+  if (!settings.open) { fillConnection(); settings.showModal();selectNavigation('connection'); }
 }
 $('connection').addEventListener('click', openConnection);
 $('close').addEventListener('click', () => settings.close());
@@ -119,9 +119,9 @@ function navigate(page) {
   if (page === 'connection') { openConnection(); return; }
   stopKeyboard(); currentPage = page;
   document.querySelectorAll('[data-panel]').forEach(n => n.hidden = n.dataset.panel !== page);
-  document.querySelectorAll('[data-page]').forEach(n => { n.classList.toggle('active', n.dataset.page === page); if (n.dataset.page === page) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current'); });
+  selectNavigation(page);
   $('page-name').textContent = page[0].toUpperCase() + page.slice(1); $('content').scrollTop = 0;
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelector(`[data-panel="${page}"]`).animate([{ opacity: .6 }, { opacity: 1 }], { duration: 180 });
+  const panel=document.querySelector(`[data-panel="${page}"]`);panel.getAnimations().forEach(a=>a.cancel());if(!Motion.reduced())panel.animate([{opacity:.65,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)'});
 }
 document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => navigate(b.dataset.page));
 document.querySelectorAll('[data-key]').forEach(b => b.onclick = () => void act(() => window.monitor.remoteKey(b.dataset.key)));
@@ -185,3 +185,7 @@ $('hide-sound').onchange=e=>void setAppearance({hideSound:e.target.checked});
 $('save-display-profile').onclick=()=>void act(()=>window.monitor.displays({action:'configure',id:state.deviceId,presentation:{family:$('display-family').value,ratio:$('display-ratio').value,speakers:$('display-speakers').value}}));
 
 $('save-controls').onclick=()=>void act(()=>window.monitor.setControlProfile($('control-profile').value));
+
+function selectNavigation(page){document.querySelectorAll('[data-page]').forEach(b=>{const active=b.dataset.page===page;b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});const b=document.querySelector(`[data-page="${page}"]`);if(b)Motion.navigation(b);}
+settings.addEventListener('close',()=>selectNavigation(currentPage));
+requestAnimationFrame(()=>{selectNavigation(currentPage);requestAnimationFrame(()=>document.body.classList.add('motion-ready'));});
