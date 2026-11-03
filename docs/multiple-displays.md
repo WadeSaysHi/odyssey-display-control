@@ -1,6 +1,6 @@
 # Saved displays and keyboard control
 
-Use **Add display**, enter an address in the connection sheet, and pair that display. Choose the target in the sidebar or native menu. Names are local labels; **Save name** does not change the monitor's own name. **Forget connection** clears only the selected display's credentials. An unpaired entry can then be removed while at least one entry remains.
+Open **Connection**, use **Add display**, enter an address in the connection sheet, and pair that display. Choose the target inside Connection or the native menu. The sidebar shows the selected display model/name. Names are local labels; **Save name** does not change the monitor's own name. **Forget connection** clears only the selected display's credentials. An unpaired entry can then be removed while at least one entry remains.
 
 Each display has independent credentials, certificate pins, polling, input association and operation state. An offline display does not block another display. Draft settings reset on target/input changes. Native menus capture their original target and reject actions if the selected display changed while the menu was open. Commands already sent to the original display may finish there; selection never redirects an in-flight operation.
 

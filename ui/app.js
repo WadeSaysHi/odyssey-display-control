@@ -13,7 +13,9 @@ function freshness() {
 function render(next) {
   const targetChanged = state?.deviceId !== next.deviceId;
   state = next;
-  if (targetChanged) { stopKeyboard(); settings.close(); }
+  if (targetChanged) { stopKeyboard(); if (settings.open) fillConnection(); }
+  $('device-title').textContent = state.controlProfile === 'oled-g8-tested' ? 'Odyssey OLED G8' : state.deviceName || 'Display';
+  $('device-title').title = state.deviceName || 'Display';
   const devices = state.devices || [];
   const signature = JSON.stringify(devices.map(d => [d.id, d.name, d.status]));
   if ($('display-target').dataset.signature !== signature) {
@@ -82,9 +84,13 @@ async function act(action, closeOnSuccess = false, complete = () => {}) {
     errorMessage = 'The app could not complete the request. Restart and reconnect.';
   } finally { pendingTargets.delete(target); render(state); if (target === state.deviceId && errorMessage) { $('message').textContent = errorMessage; $('settings-message').textContent = errorMessage; } }
 }
+function fillConnection() {
+  $('display-name').value = state?.deviceName || ''; $('control-profile').value = state?.controlProfile || 'read-only';
+  $('host').value = state?.host || ''; $('auto-confirm').checked = state?.autoConfirm ?? true;
+}
 function openConnection() {
   stopKeyboard();
-  if (!settings.open) { $('display-name').value = state?.deviceName || ''; $('control-profile').value = state?.controlProfile || 'read-only'; $('host').value = state?.host || ''; $('auto-confirm').checked = state?.autoConfirm ?? true; settings.showModal(); }
+  if (!settings.open) { fillConnection(); settings.showModal(); }
 }
 $('connection').addEventListener('click', openConnection);
 $('close').addEventListener('click', () => settings.close());
@@ -164,5 +170,5 @@ async function changeDisplay(value, open = false) {
   if (managing) return; let errorMessage = ''; stopKeyboard(); managing = true; render(state);
   try { const result = await window.monitor.displays(value); if (result.ok && open) openConnection(); else if (!result.ok) errorMessage = result.message; }
   catch { errorMessage = 'Display selection could not be saved. Try again.'; }
-  finally { managing = false; render(state); if (errorMessage) $('message').textContent = errorMessage; }
+  finally { managing = false; render(state); if (errorMessage) { $('message').textContent = errorMessage; $('settings-message').textContent = errorMessage; } }
 }

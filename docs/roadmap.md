@@ -15,7 +15,7 @@ The user authorized the remaining core roadmap implementation on 3 November 2026
 | Selected icons | E floating-panel tray and C Appearance sun implemented | Both-platform package checks passed |
 | Expanded remote | Open settings and Back/Return implemented; user observed opening then closing the top-level settings menu | Deeper submenu behavior and exact joystick quick menu unverified |
 | Keyboard routing | Focused Remote mode: single arrows, Enter, Backspace; Escape stops locally; focus/dialog/target guards | Real OSD effects remain context-dependent |
-| Multiple displays | Encrypted catalog, legacy migration, per-device credentials/controllers, sidebar/tray selection, naming and safe targeting implemented | Two physical monitors required for hardware acceptance |
+| Multiple displays | Encrypted catalog, legacy migration, per-device credentials/controllers, Connection/tray selection, naming and safe targeting implemented | Two physical monitors required for hardware acceptance |
 | Wider Odyssey support | Recognized input inventory and conservative read-only/tested profiles implemented | Additional Odyssey hardware required; no universal compatibility claim |
 | Advanced sound/picture | Supported writes retained; additional values read-only | No verified safe interface/ranges for further writes |
 | Power / firmware | Power state read-only; no verified firmware getter | No verified power/wake lifecycle or firmware interface |
@@ -256,3 +256,9 @@ Potential product distinction: a focused macOS/Windows Odyssey IP controller wit
 | Release maintenance | Signing, upgrades, recovery and longer testing | Future maintenance work |
 
 The core v0.4.0 implementation covers remote/keyboard control, multiple saved displays, capability profiles and selected icons. Remaining research and external validation gates are listed above. Optional workflow proposals remain backlog; they are not implied by completion of the core implementation.
+
+## v0.4.1 layout refinement
+
+Display selection and Add display now live in Connection. The upper-left identity returns to Odyssey OLED G8 for the tested profile, or the configured display name otherwise. Selecting another display keeps Connection open and resets its fields to that target. No credential or storage migration changed.
+
+The user observed PS5 wake switching the monitor to HDMI, then restored the input with the physical joystick. This confirms monitor CEC takeover in that sequence; the app observation log did not capture it, so end-to-end CEC detection remains unverified.

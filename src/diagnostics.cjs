@@ -37,7 +37,7 @@ async function diagnose({ win, controller, safeStorage }) {
       const timeout = setTimeout(() => { clearInterval(timer); reject(new Error('Render timeout')); }, 4000);
     })`);
     await win.webContents.executeJavaScript('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
-    report.rendered = await win.webContents.executeJavaScript("document.querySelector('h1').textContent === 'Odyssey Display Control' && typeof window.require === 'undefined' && !!window.monitor");
+    report.rendered = await win.webContents.executeJavaScript("!!document.querySelector('#device-title').textContent && typeof window.require === 'undefined' && !!window.monitor");
     report.signalSection = await win.webContents.executeJavaScript("document.querySelectorAll('.signal-item').length === 5 && !!document.querySelector('#refresh-information')");
     await fs.writeFile(path.join(folder, 'desktop.png'), (await win.webContents.capturePage()).toPNG());
   } catch (error) { report.error = error.code || 'DIAGNOSTIC_FAILURE'; }
