@@ -70,3 +70,9 @@ Original encrypted credentials remain as a recovery copy; active connections now
 Moves display selection/management into Connection and restores the selected display identity in the sidebar. UI checks cover adding, naming and selecting connections while the sheet stays open, replacing unsaved address/name fields on target changes, the G8 profile title, and prior focus/draft protections. Connection storage and encryption identities are unchanged.
 
 User observation confirmed that waking the PS5 with its controller switched the monitor to HDMI, followed by a manual joystick switch back. The app's passive log did not capture that transition; this is monitor CEC evidence, not a completed app CEC acceptance test.
+
+## Version 0.5.0
+
+Replaces the tray's native menu with a sandboxed quick panel using Electron screen coordinates, clamped to the icon's display work area. Tests cover horizontal source choices, wheel drafts, read-back IPC routing, speakerless disabling, sound hiding, and hide/reopen. Geometry tests include negative origins, top and bottom taskbars and constrained work areas; physical mixed-DPI/multiple-monitor positioning remains unverified.
+
+Connection supports explicit display-family, physical aspect-ratio and built-in-speaker metadata. The known Odyssey OLED G8 profile supplies defaults; other families require user-confirmed metadata. API volume availability is not evidence of speakers. Unknown/no speaker profiles disable sound writes in the backend; Appearance can hide the sound panel. This does not establish compatibility with additional hardware. Artwork proportions are metadata, not live signal timing. Credential storage and encryption identities remain unchanged.

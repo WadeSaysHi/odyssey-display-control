@@ -1,19 +1,20 @@
 const { _electron: electron } = require('playwright');
 const assert = require('node:assert/strict'); const path = require('node:path'); const fs = require('node:fs/promises');
+async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const p=a.windows().find(w=>w.url().endsWith('/ui/index.html'));if(p)return p;await new Promise(r=>setTimeout(r,50));}throw Error('Main window did not load');}
 (async () => {
   const a = await electron.launch({ ...(process.env.ODYSSEY_TEST_EXECUTABLE ? { executablePath: process.env.ODYSSEY_TEST_EXECUTABLE } : {}), args: process.env.ODYSSEY_TEST_EXECUTABLE ? ['--ui-test'] : ['.', '--ui-test'], cwd: path.join(__dirname, '..') });
   let folder;
   try {
-    const p = await a.firstWindow(); await p.locator('#keep-in-tray').waitFor({ state: 'attached' });
+    const p = await mainWindow(a); await p.locator('#keep-in-tray').waitFor({ state: 'attached' });
     await p.waitForFunction(async () => (await window.monitor.appearance()).trayAvailable);
     folder = await a.evaluate(({ app }) => app.getPath('userData'));
     const details = await a.evaluate(({ app }) => ({ name: app.getName(), tray: !app.testTray.tray.isDestroyed(), icon: app.testTray.tray.getBounds(), items: app.testTray.menu.items.map(i => i.id) }));
     assert.equal(details.name, 'Odyssey Display Control'); assert.equal(details.tray, true); assert.ok(details.items.includes('quit'));
-    await a.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
-    assert.equal(await a.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), false);
+    await a.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/ui/index.html')).close());
+    assert.equal(await a.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/ui/index.html')).isVisible()), false);
     await a.evaluate(({ app }) => app.testTray.menu.getMenuItemById('open').click());
-    assert.equal(await a.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), true);
-    await a.evaluate(({ app }) => { setTimeout(() => app.testTray.menu.closePopup(), 500); app.testTray.popup(); });
+    assert.equal(await a.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/ui/index.html')).isVisible()), true);
+    await a.evaluate(({ app }) => { setTimeout(() => app.testTray.panel ? app.testTray.panel.hide() : app.testTray.menu.closePopup(), 500); app.testTray.popup(); });
     await p.waitForTimeout(800);
     assert.equal(await a.evaluate(({ app }) => app.testTray.opened), false);
     await p.locator('[data-page="appearance"]').click(); await p.locator('#keep-in-tray').uncheck();
@@ -26,9 +27,9 @@ const assert = require('node:assert/strict'); const path = require('node:path');
     const b = await electron.launch({ ...(process.env.ODYSSEY_TEST_EXECUTABLE ? { executablePath: process.env.ODYSSEY_TEST_EXECUTABLE } : {}), args: process.env.ODYSSEY_TEST_EXECUTABLE ? ['--ui-test'] : ['.', '--ui-test'], cwd: path.join(__dirname, '..') });
     let secondFolder;
     try {
-      const second = await b.firstWindow(); secondFolder = await b.evaluate(({ app }) => app.getPath('userData'));
+      const second = await mainWindow(b); secondFolder = await b.evaluate(({ app }) => app.getPath('userData'));
       await second.evaluate(() => window.monitor.appearance({ theme: 'system', alwaysScrollbars: false, keepInTray: false }));
-      const exited = b.waitForEvent('close'); await b.evaluate(({ BrowserWindow }) => { setTimeout(() => BrowserWindow.getAllWindows()[0].close(), 50); }); await exited;
+      const exited = b.waitForEvent('close'); await b.evaluate(({ BrowserWindow }) => { setTimeout(() => BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/ui/index.html')).close(), 50); }); await exited;
     } finally { await b.close().catch(() => {}); if (secondFolder) await fs.rm(secondFolder, { recursive: true, force: true }); }
     console.log('Native tray: creation, renamed identity, hide/reopen, preference and explicit Quit: PASS');
   } finally { await a.close().catch(() => {}); if (folder) await fs.rm(folder, { recursive: true, force: true }); }

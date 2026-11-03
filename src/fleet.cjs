@@ -1,18 +1,20 @@
 const { EventEmitter } = require('node:events');
 const { randomUUID } = require('node:crypto');
+const { profile, validate } = require('./display-profile.cjs');
 const { Controller, messages } = require('./controller.cjs');
 class Fleet extends EventEmitter {
   constructor(catalog, io, options = {}) { super(); this.catalog = catalog; this.io = io; this.options = options; this.controllers = new Map(); this.management = Promise.resolve(); this.error = null; }
   get active() { return this.controllers.get(this.catalog.data?.selectedId); }
   snapshot() {
     return { ...(this.active?.snapshot() || { status: 'setup', sources: [], message: this.error || 'Loading saved displays…' }),
+      displayProfile: profile(this.catalog.data?.devices.find(d=>d.id===this.catalog.data.selectedId)),
       deviceId: this.catalog.data?.selectedId || null, deviceName: this.catalog.data?.devices.find(d => d.id === this.catalog.data.selectedId)?.name || 'Display',
       devices: (this.catalog.data?.devices || []).map(d => ({ id: d.id, name: d.name, status: this.controllers.get(d.id)?.state.status || 'setup', paired: Boolean(d.record) })) };
   }
   emitState() { this.emit('state', this.snapshot()); }
   update(patch) { if (this.active) this.active.update(patch); else { this.error = patch.message; this.emitState(); } }
   create(id) {
-    const c = new Controller(this.catalog.store(id), this.io, this.options);
+    const c = new Controller(this.catalog.store(id), this.io, {...this.options, speakers:()=>profile(this.catalog.data.devices.find(d=>d.id===id)).speakers});
     c.on('state', () => this.emitState()); this.controllers.set(id, c); return c;
   }
   async init() {
@@ -31,6 +33,10 @@ class Fleet extends EventEmitter {
         const id = randomUUID();
         await this.catalog.commit(data => { data.devices.push({ id, name: `Display ${data.devices.length + 1}`, record: null }); data.selectedId = id; return data; });
         const c = this.create(id); await c.init();
+      } else if (value?.action === 'configure') {
+        if(value.id!==this.catalog.data.selectedId || !validate(value.presentation)) return {ok:false,message:'Choose valid display information.'};
+        await this.catalog.commit(data=>{data.devices.find(d=>d.id===value.id).presentation=value.presentation;return data;});
+        this.active.update({});
       } else if (value?.action === 'rename') {
         const name = typeof value.name === 'string' ? value.name.trim() : '';
         if (!name || name.length > 60 || /[\x00-\x1f\x7f]/.test(name)) return { ok: false, message: 'Use a display name of 1–60 characters.' };

@@ -262,3 +262,7 @@ The core v0.4.0 implementation covers remote/keyboard control, multiple saved di
 Display selection and Add display now live in Connection. The upper-left identity returns to Odyssey OLED G8 for the tested profile, or the configured display name otherwise. Selecting another display keeps Connection open and resets its fields to that target. No credential or storage migration changed.
 
 The user observed PS5 wake switching the monitor to HDMI, then restored the input with the physical joystick. This confirms monitor CEC takeover in that sequence; the app observation log did not capture it, so end-to-end CEC detection remains unverified.
+
+## v0.5.0 capability presentation and quick controls
+
+Implemented configurable display family, artwork aspect ratio and explicit yes/no/unknown speaker metadata in Connection. Speakerless/unknown sound controls are disabled with a reminder; Appearance can hide sound in the main and quick panels. The menu-bar/tray opens a compact anchored panel with horizontal inputs, a volume wheel, mute and Open/Quit; the redundant refresh/reconnect/message block is removed. Mixed-DPI physical multi-screen validation and additional Odyssey hardware remain outstanding.

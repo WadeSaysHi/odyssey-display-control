@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 let deviceId = null, revision = 0;
 const send = (name, value = {}) => ipcRenderer.invoke(`monitor:${name}`, { ...value, deviceId });
 contextBridge.exposeInMainWorld('monitor', Object.freeze({
+  panel: value => ipcRenderer.invoke('monitor:panel',value),
   appearance: value => ipcRenderer.invoke('monitor:appearance', value),
   remoteKey: (key, keyboard = false) => send('remote', { key, keyboard }),
   onAppearance: callback => {

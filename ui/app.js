@@ -14,7 +14,12 @@ function render(next) {
   const targetChanged = state?.deviceId !== next.deviceId;
   state = next;
   if (targetChanged) { stopKeyboard(); if (settings.open) fillConnection(); }
-  $('device-title').textContent = state.controlProfile === 'oled-g8-tested' ? 'Odyssey OLED G8' : state.deviceName || 'Display';
+  const displayModel=state.displayProfile || {family:state.controlProfile==='oled-g8-tested'?'Odyssey OLED G8':state.deviceName,ratio:state.controlProfile==='oled-g8-tested'?'21:9':'unknown',speakers:'yes'};
+  $('device-title').textContent = displayModel.family || state.deviceName || 'Display';
+  const ratio={'16:9':16/9,'21:9':21/9,'32:9':32/9}[displayModel.ratio]||16/9;
+  document.querySelector('.monitor-art').style.setProperty('--panel-ratio',ratio);
+  document.querySelector('.inspector').classList.toggle('no-speakers',displayModel.speakers!=='yes');
+  $('sound-notice').textContent=displayModel.speakers==='no'?'This display has no built-in speakers. You can hide this panel in Appearance.':displayModel.speakers==='unknown'?'Built-in speaker availability is unknown. Confirm it in Connection. You can hide this panel in Appearance.':'';
   $('device-title').title = state.deviceName || 'Display';
   const devices = state.devices || [];
   const signature = JSON.stringify(devices.map(d => [d.id, d.name, d.status]));
@@ -85,6 +90,8 @@ async function act(action, closeOnSuccess = false, complete = () => {}) {
   } finally { pendingTargets.delete(target); render(state); if (target === state.deviceId && errorMessage) { $('message').textContent = errorMessage; $('settings-message').textContent = errorMessage; } }
 }
 function fillConnection() {
+  const profile=state?.displayProfile;
+  $('display-family').value=profile?.family || ''; $('display-ratio').value=profile?.ratio||'unknown'; $('display-speakers').value=profile?.speakers||'unknown';
   $('display-name').value = state?.deviceName || ''; $('control-profile').value = state?.controlProfile || 'read-only';
   $('host').value = state?.host || ''; $('auto-confirm').checked = state?.autoConfirm ?? true;
 }
@@ -119,7 +126,7 @@ document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => navigate
 document.querySelectorAll('[data-key]').forEach(b => b.onclick = () => void act(() => window.monitor.remoteKey(b.dataset.key)));
 let appearance = { theme: 'system', alwaysScrollbars: false };
 function renderAppearance(next) {
-  appearance = next; document.body.classList.toggle('night', next.dark); document.body.dataset.platform = next.platform;
+  appearance = next; document.body.classList.toggle('hide-sound',next.hideSound===true); $('hide-sound').checked=next.hideSound===true; document.body.classList.toggle('night', next.dark); document.body.dataset.platform = next.platform;
   document.body.classList.toggle('always-scrollbars', next.alwaysScrollbars);
   $('keep-in-tray').checked = next.keepInTray;
   $('background-hint').textContent = next.platform === 'darwin' ? 'Closing hides the window. Reopen from the menu-bar icon; choose Quit to exit.' : 'Closing hides the window. Reopen from the tray icon; choose Quit to exit.';
@@ -127,7 +134,7 @@ function renderAppearance(next) {
   document.querySelectorAll('[data-theme]').forEach(b => { b.classList.toggle('selected', b.dataset.theme === next.theme); b.setAttribute('aria-pressed', String(b.dataset.theme === next.theme)); });
 }
 async function setAppearance(change) {
-  try { renderAppearance(await window.monitor.appearance({ theme: appearance.theme, alwaysScrollbars: appearance.alwaysScrollbars, keepInTray: appearance.keepInTray, ...change })); $('appearance-message').textContent = ''; }
+  try { renderAppearance(await window.monitor.appearance({ theme: appearance.theme, alwaysScrollbars: appearance.alwaysScrollbars, keepInTray: appearance.keepInTray, hideSound: appearance.hideSound??false, ...change })); $('appearance-message').textContent = ''; }
   catch { $('appearance-message').textContent = 'Appearance could not be saved. Try again.'; }
 }
 window.monitor.onAppearance(renderAppearance);
@@ -172,3 +179,6 @@ async function changeDisplay(value, open = false) {
   catch { errorMessage = 'Display selection could not be saved. Try again.'; }
   finally { managing = false; render(state); if (errorMessage) { $('message').textContent = errorMessage; $('settings-message').textContent = errorMessage; } }
 }
+
+$('hide-sound').onchange=e=>void setAppearance({hideSound:e.target.checked});
+$('save-display-profile').onclick=()=>void act(()=>window.monitor.displays({action:'configure',id:state.deviceId,presentation:{family:$('display-family').value,ratio:$('display-ratio').value,speakers:$('display-speakers').value}}));

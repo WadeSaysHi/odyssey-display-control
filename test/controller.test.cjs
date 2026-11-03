@@ -98,3 +98,4 @@ test('expanded remote keys remain allowlisted and sent once',async()=>{
  for(const key of ['KEY_MENU','KEY_RETURN']) assert.equal((await f.c.remoteKey(key)).ok,true);
  assert.deepEqual(keys,['KEY_MENU','KEY_RETURN']);assert.equal((await f.c.remoteKey('KEY_FACTORY')).code,'UNSUPPORTED');
 });
+test('speakerless profile rejects sound writes even with tested control ranges',async()=>{const f=fixture();f.c.record.controlProfile='oled-g8-tested';f.c.options.speakers=()=> 'no';assert.equal((await f.c.setSetting('volume',5)).code,'UNSUPPORTED');assert.equal(f.stats().writes,0);});

@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { presentation, empty } = require('../src/information.cjs');
+async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const p=a.windows().find(w=>w.url().endsWith('/ui/index.html'));if(p)return p;await new Promise(r=>setTimeout(r,50));}throw Error('Main window did not load');}
 (async () => {
   const app = await electron.launch({ ...(process.env.ODYSSEY_TEST_EXECUTABLE ? { executablePath: process.env.ODYSSEY_TEST_EXECUTABLE } : {}), args: process.env.ODYSSEY_TEST_EXECUTABLE ? ['--ui-test'] : ['.', '--ui-test'], cwd: path.join(__dirname, '..') });
   try {
-    const page = await app.firstWindow(); const errors = []; page.on('pageerror', e => errors.push(e.message));
+    const page = await mainWindow(app); const errors = []; page.on('pageerror', e => errors.push(e.message));
     await page.locator('#device-title').waitFor();
     assert.equal(await page.locator('.sidebar #display-target').count(),0);
     assert.equal(await page.locator('#settings #display-target').count(),1);
@@ -28,6 +29,12 @@ const { presentation, empty } = require('../src/information.cjs');
     await page.waitForFunction(()=>document.querySelector('#display-name').value==='Display 2');
     await page.locator('#display-name').fill('Desk display');await page.locator('#rename-display').click();
     await page.getByRole('heading',{name:'Desk display',exact:true}).waitFor();
+    await page.locator('.display-details summary').click();
+    await page.locator('#display-family').selectOption('Odyssey G9');await page.locator('#display-ratio').selectOption('32:9');await page.locator('#display-speakers').selectOption('no');await page.locator('#save-display-profile').click();
+    await page.getByRole('heading',{name:'Odyssey G9',exact:true}).waitFor();
+    assert.equal(await page.locator('.inspector').evaluate(n=>n.classList.contains('no-speakers')),true);
+    assert.match(await page.locator('#sound-notice').textContent(),/no built-in speakers/);
+    assert.ok(await page.locator('.bezel').evaluate(n=>Math.abs(n.getBoundingClientRect().width/n.getBoundingClientRect().height-32/9)<.1));
     await page.locator('#host').fill('unsaved');
     await page.locator('#display-target').selectOption(savedTarget);
     await page.waitForFunction(()=>document.querySelector('#display-name').value==='Display 1');
@@ -41,7 +48,7 @@ const { presentation, empty } = require('../src/information.cjs');
     const initial = await app.evaluate(({ app }) => app.testTray.controller.snapshot());
     const snapshot = { deviceId: initial.deviceId, deviceName: 'Test display', devices: initial.devices, controlProfile: 'oled-g8-tested', host: '', status: 'online', paired: true, busy: false, current: 'usb-c', updatedAt: Date.now(), message: 'Input refreshed.', verification: 'dual', remoteAvailable: true, sources: [{ key: 'usb-c' }, { key: 'displayport' }, { key: 'hdmi' }] };
     function build() { return { ...snapshot, information: presentation(report, snapshot.current, true, { input: 'usb-c', displayKey: 'fixture' }) }; }
-    const send = () => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows()[0].webContents.send('monitor:state', s), build());
+    const send = () => app.evaluate(({ BrowserWindow }, s) => BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/ui/index.html')).webContents.send('monitor:state', s), build());
     await app.evaluate(({ ipcMain }) => { ipcMain.removeHandler('monitor:setting'); ipcMain.handle('monitor:setting', (_e, value) => { globalThis.uiLastSetting = value; return { ok: true }; }); });
     await send();
     await page.getByRole('heading',{name:'Odyssey OLED G8',exact:true}).waitFor();
@@ -106,6 +113,7 @@ const { presentation, empty } = require('../src/information.cjs');
     await send(); assert.equal(await page.getByLabel('Contrast', { exact: true }).inputValue(), '49');
     await page.locator('[data-page="appearance"]').click(); await page.locator('[data-theme="dark"]').click();
     await page.waitForFunction(() => document.body.classList.contains('night')); assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), 'dark');
+    await page.locator('#hide-sound').check();await page.waitForFunction(()=>document.body.classList.contains('hide-sound'));assert.equal(await page.locator('.inspector').isVisible(),false);await page.locator('#hide-sound').uncheck();
     await page.locator('#always-scrollbars').check(); await page.waitForFunction(() => document.body.classList.contains('always-scrollbars'));
     await page.locator('[data-page="monitor"]').click(); await page.locator('.computer-details summary').click(); await page.setViewportSize({ width: 900, height: 650 });
     await page.locator('[data-page="remote"]').click();

@@ -174,6 +174,7 @@ class Controller extends EventEmitter {
   setSetting(key, value, expectedInput = this.state.current) {
     return this.exclusive(async () => {
       try {
+        if (['volume','mute'].includes(key) && this.options.speakers && this.options.speakers()!=='yes') throw transport.fail('UNSUPPORTED');
         if (this.record?.controlProfile !== 'oled-g8-tested') throw transport.fail('UNSUPPORTED');
         await this.information.set(key, value, expectedInput); }
       catch (error) {

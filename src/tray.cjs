@@ -1,4 +1,5 @@
 const path = require('node:path');
+const {create}=require('./quick-panel.cjs');
 const LABELS = { 'usb-c': 'USB-C', displayport: 'DisplayPort', hdmi: 'HDMI' };
 function freshControl(state, key) {
   const info = state.information;
@@ -62,6 +63,7 @@ class DesktopTray {
       reconnect: (id = controller.snapshot().deviceId) => guard(id, () => { const s = controller.snapshot(); return s.paired ? controller.reconnect(s.host) : undefined; }),
       open, quit,
     };
+    if(electron.BrowserWindow && electron.screen) this.showPanel=create(this);
     this.listener = () => this.update(); controller.on('state', this.listener);
     // Do not rebuild a native menu under the pointer while it is open.
     this.tray.on('click', () => this.popup()); this.tray.on('right-click', () => this.popup());
@@ -71,6 +73,7 @@ class DesktopTray {
   update() {
     if (this.destroyed) return;
     const state = this.controller.snapshot();
+    if(this.panel && !this.panel.isDestroyed()) this.panel.webContents.send('monitor:state',state);
     this.tray.setToolTip(`Odyssey Display Control — ${state.busy ? 'Working' : state.status === 'online' ? LABELS[state.current] || 'Connected' : 'Disconnected'}`);
     if (this.opened) return;
     const template = menuTemplate(state, this.actions), signature = JSON.stringify(template);
@@ -79,7 +82,9 @@ class DesktopTray {
     this.menu.on('menu-will-close', () => { this.opened = false; setImmediate(() => this.update()); });
   }
   popup() {
-    if (this.destroyed || this.opened) return;
+    if(this.destroyed)return;
+    if(this.showPanel){this.showPanel();return;}
+    if(this.opened)return;
     this.update(); this.opened = true;
     try { const bounds = this.tray.getBounds();
       this.menu.popup({ x: Math.round(bounds.x), y: Math.round(bounds.y + bounds.height), callback: () => { this.opened = false; this.update(); } }); }
@@ -88,7 +93,7 @@ class DesktopTray {
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true; clearInterval(this.timer); this.controller.removeListener('state', this.listener);
-    this.menu?.closePopup(); this.tray.destroy();
+    this.panel?.destroy(); this.menu?.closePopup(); this.tray.destroy();
   }
 }
 module.exports = { DesktopTray, menuTemplate, freshControl };

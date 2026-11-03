@@ -1,10 +1,11 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const defaults = { theme: 'system', alwaysScrollbars: false, keepInTray: true };
+const defaults = { theme: 'system', alwaysScrollbars: false, keepInTray: true, hideSound: false };
 function validate(value) {
   if (!value || !['system', 'light', 'dark'].includes(value.theme) || typeof value.alwaysScrollbars !== 'boolean') throw new Error('Invalid appearance');
   if (value.keepInTray !== undefined && typeof value.keepInTray !== 'boolean') throw new Error('Invalid background preference');
-  return { theme: value.theme, alwaysScrollbars: value.alwaysScrollbars, keepInTray: value.keepInTray ?? true };
+  if(value.hideSound!==undefined && typeof value.hideSound!=='boolean') throw Error('Invalid sound preference');
+  return { hideSound:value.hideSound??false, theme: value.theme, alwaysScrollbars: value.alwaysScrollbars, keepInTray: value.keepInTray ?? true };
 }
 class Appearance {
   constructor(folder) { this.file = path.join(folder, 'appearance.json'); this.value = { ...defaults }; this.writes = Promise.resolve(); }

@@ -36,14 +36,17 @@ else {
       win.setBackgroundColor(dark ? '#1c1c1e' : '#f5f5f7');
       if (process.platform === 'win32') win.setTitleBarOverlay({ color: dark ? '#2c2c2e' : '#ffffff', symbolColor: dark ? '#f5f5f7' : '#1d1d1f', height: 48 });
       win.webContents.send('monitor:appearance', appearanceState());
+      desktopTray?.panel?.webContents.send('monitor:appearance',appearanceState());
     };
     nativeTheme.on('updated', syncChrome);
     const catalog = new Catalog(app.getPath('userData'), safeStorage);
     controller = new Fleet(catalog, undefined, { queryDisplays });
+    const quickPage=pathToFileURL(path.join(__dirname,'../ui/quick.html')).href;
     const page = pathToFileURL(path.join(__dirname, '../ui/index.html')).href;
     for (const [name, action] of Object.entries({
       state: () => controller.snapshot(),
       appearance: async value => { if (value !== undefined) { await appearance.set(value); nativeTheme.themeSource = appearance.value.theme; syncChrome(); } return appearanceState(); },
+      panel: value => {if(value && Number.isInteger(value.height) && value.height>=150 && value.height<=600){desktopTray?.resizePanel?.(value.height);return;} desktopTray?.panel?.hide(); if(value==='open'){win.show();win.focus();} else if(value==='quit')app.quit();},
       displays: value => controller.manage(value),
       remote: value => controller.invoke(value?.deviceId, 'remoteKey', value?.key),
       pair: value => controller.invoke(value?.deviceId, 'pair', value?.host, { autoConfirm: value?.autoConfirm === true, controlProfile: value?.controlProfile }),
@@ -54,7 +57,9 @@ else {
       setting: value => controller.invoke(value?.deviceId, 'setSetting', value?.key, value?.value, value?.input),
       associate: value => controller.invoke(value?.deviceId, 'associateComputer', value?.input, value?.displayKey),
     })) ipcMain.handle(`monitor:${name}`, (event, value) => {
-      if (event.sender !== win?.webContents || event.senderFrame?.url !== page) throw new Error('Untrusted sender');
+      const main=event.sender===win?.webContents && event.senderFrame?.url===page;
+      const quick=event.sender===desktopTray?.panel?.webContents && event.senderFrame?.url===quickPage;
+      if(!main&&!quick)throw new Error('Untrusted sender');
       if (name === 'remote' && value?.keyboard && (!win.isFocused() || !win.isVisible())) return { ok: false, message: 'Focus the Remote page to control the monitor.' };
       return action(value);
     });

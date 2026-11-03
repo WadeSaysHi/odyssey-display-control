@@ -19,6 +19,7 @@ jobs:
       - run: npm audit
       - run: npm run test:ui
       - run: node scripts/tray-test.cjs
+      - run: node scripts/quick-test.cjs
       - run: npm run dist
       - uses: actions/upload-artifact@v7
         with:

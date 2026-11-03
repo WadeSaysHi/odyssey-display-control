@@ -47,6 +47,7 @@ class Information {
   constructor(controller, queryDisplays = async () => []) { this.c = controller; this.queryDisplays = queryDisplays; this.report = empty(); this.lastAttempt = 0; }
   snapshot() { const info = presentation(this.report, this.c.state.current, this.c.state.status === 'online', this.c.record?.association);
     if (this.c.record?.controlProfile !== 'oled-g8-tested') info.controls.forEach(c => { c.enabled = false; });
+    if(this.c.options?.speakers && this.c.options.speakers()!=='yes') info.controls.filter(c=>c.group==='sound').forEach(c=>{c.enabled=false;});
     return info; }
   publish() { this.c.update({ information: this.snapshot() }); }
   invalidate() {
