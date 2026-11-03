@@ -126,7 +126,17 @@ class Information {
       if (context.inputSource !== before.inputSource || this.c.state.current !== input) throw fail('SETTING_CONTEXT');
       if (actual[definition.field] !== value) throw fail('SETTING_VERIFY');
     }
-    await this.read();
+    // The two fresh getter/context pairs above already verified this setting.
+    // Do not block Apply on unrelated picture getters or an OS display query.
+    const previous = this.report.monitor;
+    const sameInput = previous.input === input;
+    this.report.monitor = { ...(sameInput ? previous : empty().monitor),
+      input, status: sameInput ? previous.status : 'fresh',
+      at: sameInput ? previous.at : Date.now(), error: sameInput ? previous.error : '',
+      controls: { ...(sameInput ? previous.controls : {}), [key]: value },
+      values: { ...(sameInput ? previous.values : {}), ...(key === 'volume' ? { volume: value } : {}) } };
+    this.lastAttempt = 0; // Refresh remaining telemetry on the next idle poll.
+    this.publish();
     this.c.update({ message: `${definition.label} confirmed by two fresh monitor reads.` });
   }
 }

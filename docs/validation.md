@@ -42,3 +42,9 @@ The three-pane UI, volume-wheel keyboard/drag/click behavior, retained drafts, i
 Live macOS tests passed volume-wheel and mute changes, a contrast-slider change, read-back and restoration; all three direct inputs; second-client switching without automatic reversal; and an authorized Remote Exit command. Newly queried color tone, color level, tint, speaker output and power state are read-only. Remote command transport success does not prove a menu changed. The expected input is carried with each UI setting write; an external input change before Apply reaches the controller rejects that draft.
 
 The packaged Windows app was also launched in the signed-in interactive desktop: DPAPI encryption, storage round-trip, UI rendering, live monitor input read, OS output query and the signal panel passed. This does not replace the still-unverified Windows first-pairing and deliberate PS5 CEC tests. Bright/night screenshots were reviewed; release bundles and public files were checked for private metadata.
+
+## Version 0.3.1 response time
+
+Apply no longer waits for unrelated picture and OS telemetry after two successful getter/context verification pairs. Only the verified setting is updated immediately; other readings retain their original timestamps and refresh on the next idle poll. Source verification samples every 250 ms rather than waiting one second before each sample; two fresh agreeing samples remain required.
+
+On the same local hardware, one before/after measurement reduced unchanged-volume confirmation from 4.77 s to 2.23 s, and current-input confirmation from 3.17 s to 1.61 s. A repeat measured 2.42 s and 1.68 s. Actual DisplayPort, HDMI and USB-C transitions were confirmed in 3.58 s, 5.32 s and 3.42 s respectively. These are small-sample API timings, not guarantees or measurements of visible video arrival. Existing polling/network delays remain possible.

@@ -92,3 +92,9 @@ test('external input change before Apply cannot retarget an old input draft', as
   await assert.rejects(f.info.set('volume', 6, 'usb-c'), { code: 'SETTING_CONTEXT' });
   assert.equal(f.writes(), 0);
 });
+test('verified Apply avoids unrelated telemetry and does not renew old readings', async () => {
+  const f = fixture(); await f.info.read(); const at = f.info.report.monitor.at;
+  f.info.read = async () => { throw Error('Full refresh must not block Apply'); };
+  await f.info.set('volume', 6); assert.equal(f.info.report.monitor.values.volume, 6);
+  assert.equal(f.info.report.monitor.at, at); assert.equal(f.info.lastAttempt, 0);
+});

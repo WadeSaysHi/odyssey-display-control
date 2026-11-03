@@ -221,7 +221,7 @@ class Controller extends EventEmitter {
       const deadline = Date.now() + (this.options.verifyMs || 20000);
       let matches = 0, independent = false;
       while (Date.now() < deadline) {
-        await delay(this.options.sampleMs || 1000);
+        await delay(this.options.sampleMs || 250);
         try {
           const fresh = await this.refresh();
           let agrees = true; independent = false;
