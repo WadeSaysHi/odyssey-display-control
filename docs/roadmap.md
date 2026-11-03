@@ -1,8 +1,28 @@
 # Odyssey Display Control — development roadmap
 
-Planning baseline: 3 November 2026. Current work: v0.3.2 — menu-bar/tray support and naming update.
+Planning baseline: 3 November 2026. Current implementation: v0.4.0 — expanded remote, keyboard routing, multiple saved displays and capability profiles.
 
-This document records product direction, research findings, delivered work and outstanding decisions. The menu-bar/tray feature and product/repository rename are authorized for v0.3.2. Other future features remain planning items. No delivery dates are committed.
+This document records product direction, research findings, delivered work and outstanding decisions. Menu-bar/tray and rename shipped in v0.3.2. The remaining core implementation was authorized for v0.4.0; optional ideas remain explicitly listed as backlog. No delivery dates are committed.
+
+## Progress review — v0.4.0
+
+The user authorized the remaining core roadmap implementation on 3 November 2026. Source implementation is complete for the remote/keyboard, multiple-display foundation and capability-profile milestones. Package validation results are recorded in [validation](validation.md). Hardware-dependent research and optional backlog are not marked complete.
+
+| Area | Actual progress | Remaining gate |
+| --- | --- | --- |
+| Single-display IP control and desktop UX | Delivered, preserved | Existing hardware/firmware limitations |
+| Menu bar / tray and rename | Delivered in v0.3.2; target selector added | Broader hardware coverage |
+| Selected icons | E floating-panel tray and C Appearance sun implemented | Both-platform package checks passed |
+| Expanded remote | Open settings and Back/Return implemented; user observed opening then closing the top-level settings menu | Deeper submenu behavior and exact joystick quick menu unverified |
+| Keyboard routing | Focused Remote mode: single arrows, Enter, Backspace; Escape stops locally; focus/dialog/target guards | Real OSD effects remain context-dependent |
+| Multiple displays | Encrypted catalog, legacy migration, per-device credentials/controllers, sidebar/tray selection, naming and safe targeting implemented | Two physical monitors required for hardware acceptance |
+| Wider Odyssey support | Recognized input inventory and conservative read-only/tested profiles implemented | Additional Odyssey hardware required; no universal compatibility claim |
+| Advanced sound/picture | Supported writes retained; additional values read-only | No verified safe interface/ranges for further writes |
+| Power / firmware | Power state read-only; no verified firmware getter | No verified power/wake lifecycle or firmware interface |
+| Reliability | Per-device isolation and stale-target regression coverage added | PS5 CEC, cold start, address change and overnight tests outstanding |
+| Release maintenance | Direct GitHub packages/checksums and migration recovery documentation | Signing identity unavailable; signing/notarization remain external requirements |
+
+Optional presets, discovery, global shortcuts, startup at login and additional languages remain backlog, not delivered features. They require their own interaction and acceptance criteria. No login item is installed.
 
 ## 1. Product direction and scope
 
@@ -60,13 +80,13 @@ The full settings menu and the physical joystick's small Home/Settings/Source/Re
 
 Agreed intention: let users navigate the monitor using their computer keyboard, reducing physical joystick use.
 
-Proposed initial interaction, subject to final alignment:
+Implemented initial interaction:
 
 - Provide an explicit **Control monitor with keyboard** mode on the Remote page.
 - Restrict control to the focused app and active Remote page initially.
 - Show a persistent indication of whether keyboard control is active and which monitor receives commands.
 - Arrow keys send directional navigation. Enter sends ordinary OK/select.
-- Backspace may send Back/Return after that command is verified.
+- Backspace sends Back/Return after its top-level settings-menu behavior was observed on hardware.
 - Provide a visible Open settings control and consider a configurable shortcut.
 - Reserve a clear local way to leave keyboard-control mode. Do not automatically map Escape to the currently ambiguous Exit command.
 
@@ -83,7 +103,7 @@ Acceptance evidence should include normal typing unaffected, correct focus routi
 
 ## 4. Multiple-display support
 
-This is part of the future direction. Whether it belongs in the next implementation milestone or follows remote/keyboard work remains undecided.
+Implemented as a multiple-display software foundation in v0.4.0. Two physical displays are still needed for hardware acceptance. See [usage and migration](multiple-displays.md).
 
 Required foundation:
 
@@ -126,7 +146,6 @@ Preserve existing supported controls and expand only after verification:
 - Volume/mute and existing picture adjustments continue to require fresh read-back and input-context checks.
 - Keep newly queried color tone, color level, tint and sound output read-only until writes, valid choices and read-back have been tested.
 - Research sound-mode and output selection without inventing available options or treating an empty external-device list as permanent lack of support.
-- Test power off, standby, network availability while off and wake independently. Current power-status reading does not establish any of these operations.
 - Investigate an alternate firmware-information query only if a credible interface is found. The tested getter did not provide firmware information; omit an unverified value.
 - Keep unsupported HDR/VRR, gamma, tone mapping and uncalibrated raw brightness readings out of the normal UI until a meaningful verified interface exists.
 - Preserve the distinction between reported picture-mode names and independent HDR status.
@@ -228,12 +247,12 @@ Potential product distinction: a focused macOS/Windows Odyssey IP controller wit
 
 | Phase | Proposed content | Status |
 | --- | --- | --- |
-| Next functional update | Open settings, tested Back/Return behavior, keyboard-control mode and focus routing | Direction agreed; exact interaction details and implementation start pending |
+| Next functional update | Open settings, tested Back/Return behavior, keyboard-control mode and focus routing | Implemented in v0.4.0; top-level Back/Return observed on hardware |
 | Name migration | Odyssey Display Control branding and preserved existing profiles | Implemented in v0.3.2; repository metadata updated |
-| Multiple displays | Independent device records, selection, credentials and capability state | Future direction agreed; placement in the next milestone or a later milestone unresolved |
-| Wider Odyssey support | Capability profiles and testing on additional IP-capable displays | Goal agreed; compatibility must be demonstrated |
+| Multiple displays | Independent device records, selection, credentials and capability state | Implemented foundation in v0.4.0; two-display hardware acceptance pending |
+| Wider Odyssey support | Capability profiles and testing on additional IP-capable displays | Capability/profile foundation implemented; additional hardware compatibility unverified |
 | Tray / menu-bar access | Background quick controls, reopen main window and explicit Quit | Implemented in v0.3.2; see validation results |
 | Later product work | Presets, discovery and broader automation | Proposed options; not approved scope |
 | Release maintenance | Signing, upgrades, recovery and longer testing | Future maintenance work |
 
-The current implementation scope is menu-bar/tray support and naming. Before starting the remaining roadmap work, align the multi-display milestone, exact keyboard activation/mappings and Back/Return observations. Those features have not been implemented by this update.
+The core v0.4.0 implementation covers remote/keyboard control, multiple saved displays, capability profiles and selected icons. Remaining research and external validation gates are listed above. Optional workflow proposals remain backlog; they are not implied by completion of the core implementation.

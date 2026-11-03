@@ -40,3 +40,6 @@ test('native popup stays stable during polls; close refreshes and destruction cl
   f.tray.destroy(); assert.equal(f.c.listenerCount('state'), 0); assert.equal(f.tray.tray.dead, true);
   f.tray.destroy();
 });
+test('an open native menu cannot send a command to a newly selected display',async()=>{
+ const f=fixture();try{f.c.update({deviceId:'first',deviceName:'First'});const menu=f.tray.menu;f.c.update({deviceId:'second',deviceName:'Second'});menu.items.find(i=>i.id==='source-usb-c').click();await tick();assert.equal(f.writes.length,0);assert.equal(f.opened(),1);}finally{f.tray.destroy();}
+});

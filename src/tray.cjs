@@ -9,20 +9,21 @@ function menuTemplate(state, actions) {
   const volume = freshControl(state, 'volume'), mute = freshControl(state, 'mute');
   const online = state.status === 'online', enabled = online && !state.busy;
   return [
-    { label: 'Odyssey Display Control', enabled: false },
+    { label: state.deviceName || 'Odyssey Display Control', enabled: false },
+    ...(state.devices?.length ? [{ label: 'Select display', submenu: state.devices.map(d => ({ label: d.name, type: 'radio', checked: d.id === state.deviceId, click: () => actions.select(d.id) })) }] : []),
     { label: `${state.busy ? 'Working…' : online ? 'Connected' : state.paired ? 'Disconnected' : 'Not paired'} — ${LABELS[state.current] || 'Input unknown'}`, enabled: false },
     { type: 'separator' },
-    ...Object.entries(LABELS).map(([key, label]) => ({ id: `source-${key}`, label, type: 'radio', checked: state.current === key,
-      enabled: enabled && state.sources.some(s => s.key === key), click: () => actions.source(key) })),
+    ...[...new Map([...Object.entries(LABELS), ...state.sources.map(s => [s.key, s.label || LABELS[s.key] || s.key])]).entries()].map(([key, label]) => ({ id: `source-${key}`, label, type: 'radio', checked: state.current === key,
+      enabled: enabled && state.sources.some(s => s.key === key), click: () => actions.source(key, state.deviceId) })),
     { type: 'separator' },
     { label: volume ? `Volume: ${volume.value}` : 'Volume unavailable — refresh', enabled: false },
-    { id: 'volume-up', label: 'Volume up', enabled: Boolean(volume && volume.value < 100), click: () => actions.volume(1, state.current) },
-    { id: 'volume-down', label: 'Volume down', enabled: Boolean(volume && volume.value > 0), click: () => actions.volume(-1, state.current) },
+    { id: 'volume-up', label: 'Volume up', enabled: Boolean(volume && volume.value < 100), click: () => actions.volume(1, state.current, state.deviceId) },
+    { id: 'volume-down', label: 'Volume down', enabled: Boolean(volume && volume.value > 0), click: () => actions.volume(-1, state.current, state.deviceId) },
     { id: 'mute', label: 'Mute', type: 'checkbox', checked: state.information?.controls.some(c => c.key === 'mute' && c.value === 'muteOn') || false,
-      enabled: Boolean(mute), click: () => actions.mute(state.current) },
+      enabled: Boolean(mute), click: () => actions.mute(state.current, state.deviceId) },
     { type: 'separator' },
-    { id: 'refresh', label: 'Refresh monitor information', enabled: state.paired && !state.busy, click: actions.refresh },
-    { id: 'reconnect', label: 'Reconnect', enabled: state.paired && !state.busy, click: actions.reconnect },
+    { id: 'refresh', label: 'Refresh monitor information', enabled: state.paired && !state.busy, click: () => actions.refresh(state.deviceId) },
+    { id: 'reconnect', label: 'Reconnect', enabled: state.paired && !state.busy, click: () => actions.reconnect(state.deviceId) },
     { label: (state.message || '').replace(/[\r\n]/g, ' ').slice(0, 110) || 'Local network control', enabled: false },
     { type: 'separator' },
     { id: 'open', label: 'Open Odyssey Display Control', click: actions.open },
@@ -44,12 +45,21 @@ class DesktopTray {
       }
       return controller.setSetting(key, next(c.value), input);
     };
+    const targeted = (id, method, ...args) => {
+      if (controller.invoke) return controller.invoke(id, method, ...args);
+      return controller[method](...args);
+    };
+    const guard = (id, work) => run(() => {
+      if (id !== controller.snapshot().deviceId) { controller.update({ message: 'Selected display changed. Reopen the menu before sending a command.' }); open(); return; }
+      return work();
+    });
     this.actions = {
-      source: key => run(() => controller.switchSource(key)),
-      volume: (delta, input) => run(() => setting('volume', input, value => Math.max(0, Math.min(100, value + delta)))),
-      mute: input => run(() => setting('mute', input, value => value === 'muteOn' ? 'muteOff' : 'muteOn')),
-      refresh: () => run(() => controller.refreshInformation()),
-      reconnect: () => run(() => { const s = controller.snapshot(); return s.paired ? controller.reconnect(s.host) : undefined; }),
+      select: id => run(() => controller.manage({ action: 'select', id })),
+      source: (key, id = controller.snapshot().deviceId) => guard(id, () => targeted(id, 'switchSource', key)),
+      volume: (delta, input, id = controller.snapshot().deviceId) => guard(id, () => setting('volume', input, value => Math.max(0, Math.min(100, value + delta)))),
+      mute: (input, id = controller.snapshot().deviceId) => guard(id, () => setting('mute', input, value => value === 'muteOn' ? 'muteOff' : 'muteOn')),
+      refresh: (id = controller.snapshot().deviceId) => guard(id, () => targeted(id, 'refreshInformation')),
+      reconnect: (id = controller.snapshot().deviceId) => guard(id, () => { const s = controller.snapshot(); return s.paired ? controller.reconnect(s.host) : undefined; }),
       open, quit,
     };
     this.listener = () => this.update(); controller.on('state', this.listener);

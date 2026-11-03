@@ -1,5 +1,5 @@
 const { fail } = require('./transport.cjs');
-const INPUT = { 'usb-c': 'USB-C', displayport: 'DISPLAY PORT', hdmi: 'HDMI1' };
+const INPUT = { 'usb-c': 'USB-C', displayport: 'DISPLAY PORT', hdmi: 'HDMI1', hdmi2: 'HDMI2', hdmi3: 'HDMI3', hdmi4: 'HDMI4' };
 const SETTINGS = {
   volume: { label: 'Volume', group: 'sound', method: 'directVolumeControl', field: 'volume', min: 0, max: 100 },
   mute: { label: 'Mute', group: 'sound', method: 'muteControl', field: 'mute', choices: ['muteOff', 'muteOn'] },
@@ -45,7 +45,9 @@ function presentation(report, current, online, association = {}, now = Date.now(
 }
 class Information {
   constructor(controller, queryDisplays = async () => []) { this.c = controller; this.queryDisplays = queryDisplays; this.report = empty(); this.lastAttempt = 0; }
-  snapshot() { return presentation(this.report, this.c.state.current, this.c.state.status === 'online', this.c.record?.association); }
+  snapshot() { const info = presentation(this.report, this.c.state.current, this.c.state.status === 'online', this.c.record?.association);
+    if (this.c.record?.controlProfile !== 'oled-g8-tested') info.controls.forEach(c => { c.enabled = false; });
+    return info; }
   publish() { this.c.update({ information: this.snapshot() }); }
   invalidate() {
     this.lastAttempt = 0;

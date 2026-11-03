@@ -84,3 +84,17 @@ test('remote keys enforce the whitelist and device identity before sending', asy
   assert.match(f.c.state.message, /cannot be verified/);
   assert.ok(!JSON.stringify(f.c.snapshot()).includes('remoteToken'));
 });
+test('dynamic source inventory accepts additional HDMI ports without private source titles', async () => {
+  const list = rows('USB_C'); list.response.push({sourceId:'source@HDMI2',currentSource:'False',title:'private'});
+  const result = parseSources(list); assert.equal(result.find(s=>s.key==='hdmi2').label,'HDMI 2');
+  assert.ok(!JSON.stringify(result).includes('private'));
+});
+test('untested hardware cannot invoke setting writes through the controller',async()=>{
+  const f=fixture();f.c.record.controlProfile='read-only';assert.equal((await f.c.setSetting('volume',5,'usb-c')).code,'UNSUPPORTED');assert.equal(f.stats().writes,0);
+});
+test('expanded remote keys remain allowlisted and sent once',async()=>{
+ const f=fixture();f.c.record.remoteToken='fixture';const keys=[];
+ f.c.io.Remote=class { async connect(){} async sendKey(key){keys.push(key);} close(){} };
+ for(const key of ['KEY_MENU','KEY_RETURN']) assert.equal((await f.c.remoteKey(key)).ok,true);
+ assert.deepEqual(keys,['KEY_MENU','KEY_RETURN']);assert.equal((await f.c.remoteKey('KEY_FACTORY')).code,'UNSUPPORTED');
+});

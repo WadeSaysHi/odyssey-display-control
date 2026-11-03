@@ -8,6 +8,8 @@ const PORTS = {
 };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const messages = {
+  TARGET: 'The selected display changed. Review the target before trying again.',
+  DUPLICATE: 'This display is already saved. Select its existing connection.',
   INVALID_IP: 'Enter a private IPv4 address from your local network.',
   OFFLINE: 'Cannot reach the monitor. Check its power and network, then reconnect.',
   CERTIFICATE: 'The monitor certificate changed. Forget this connection and pair again after checking the address.',
@@ -28,7 +30,8 @@ function parseSources(answer) {
   const sources = [];
   for (const item of answer.response) {
     if (typeof item.sourceId !== 'string') continue;
-    const port = PORTS[item.sourceId.split('@').pop()];
+    const suffix = item.sourceId.split('@').pop();
+    const port = PORTS[suffix] || (/^HDMI[2-4]$/.test(suffix) ? { key: suffix.toLowerCase(), label: `HDMI ${suffix.slice(-1)}`, ip: suffix } : /^DISPLAYPORT[12]$/.test(suffix) ? { key: suffix.toLowerCase(), label: `DisplayPort ${suffix.slice(-1)}`, ip: null } : null);
     if (!port) continue;
     if (sources.some(x => x.key === port.key)) throw transport.fail('PROTOCOL');
     sources.push({ ...port, id: item.sourceId, current: String(item.currentSource).toLowerCase() === 'true' });
@@ -45,7 +48,7 @@ class Controller extends EventEmitter {
     this.information = new Information(this, options.queryDisplays);
     this.state.information = this.information.snapshot();
   }
-  snapshot() { return structuredClone({ ...this.state, remoteAvailable: Boolean(this.record?.remoteToken) }); }
+  snapshot() { return structuredClone({ ...this.state, controlProfile: this.record?.controlProfile || 'read-only', remoteAvailable: Boolean(this.record?.remoteToken) }); }
   update(patch) { Object.assign(this.state, patch); this.state.information = this.information.snapshot(); this.emit('state', this.snapshot()); }
   async init() {
     this.timer = setInterval(() => void this.poll(), this.options.pollMs || 3000);
@@ -92,7 +95,7 @@ class Controller extends EventEmitter {
         result = await request;
       } finally { clearTimeout(confirmTimer); remote?.close(); }
       if (typeof result.AccessToken !== 'string' || !result.AccessToken) throw transport.fail('PAIRING');
-      const record = { ...device, host, ipPin, token: result.AccessToken, autoConfirm: Boolean(options.autoConfirm),
+      const record = { ...device, host, ipPin, token: result.AccessToken, autoConfirm: Boolean(options.autoConfirm), controlProfile: ['oled-g8-tested', 'read-only'].includes(options.controlProfile) ? options.controlProfile : this.record?.controlProfile || 'read-only',
         ...(this.record?.association ? { association: this.record.association } : {}),
         ...(this.record?.remoteName ? { remoteName: this.record.remoteName } : {}),
         ...(remote?.token ? { remoteToken: remote.token } : this.record?.remoteToken ? { remoteToken: this.record.remoteToken } : {}) };
@@ -170,7 +173,9 @@ class Controller extends EventEmitter {
   }
   setSetting(key, value, expectedInput = this.state.current) {
     return this.exclusive(async () => {
-      try { await this.information.set(key, value, expectedInput); }
+      try {
+        if (this.record?.controlProfile !== 'oled-g8-tested') throw transport.fail('UNSUPPORTED');
+        await this.information.set(key, value, expectedInput); }
       catch (error) {
         this.information.report.monitor.status = 'unavailable';
         this.information.report.monitor.error = messages[error.code] || messages.SETTING_VERIFY;
@@ -180,7 +185,7 @@ class Controller extends EventEmitter {
   }
   remoteKey(key) {
     return this.exclusive(async () => {
-      if (!['KEY_UP', 'KEY_DOWN', 'KEY_LEFT', 'KEY_RIGHT', 'KEY_ENTER', 'KEY_SOURCE', 'KEY_EXIT'].includes(key)) throw transport.fail('UNSUPPORTED');
+      if (!['KEY_UP', 'KEY_DOWN', 'KEY_LEFT', 'KEY_RIGHT', 'KEY_ENTER', 'KEY_SOURCE', 'KEY_EXIT', 'KEY_MENU', 'KEY_RETURN'].includes(key)) throw transport.fail('UNSUPPORTED');
       if (!this.record?.remoteToken) throw transport.fail('PAIRING');
       const device = await this.io.probe(this.record.host);
       if (device.identity !== this.record.identity) throw transport.fail('IDENTITY');
@@ -194,7 +199,7 @@ class Controller extends EventEmitter {
   associateComputer(input, displayKey) {
     return this.exclusive(async () => {
       if (!this.record) throw transport.fail('PAIRING');
-      if (input !== '' && (!Object.values(PORTS).some(port => port.key === input) ||
+      if (input !== '' && (!this.state.sources.some(port => port.key === input) ||
         !this.information.report.computer.displays.some(d => d.key === displayKey) || this.information.report.computer.status !== 'fresh')) throw transport.fail('INVALID_SETTING');
       const record = { ...this.record, association: input ? { input, displayKey } : null };
       await this.store.save(record); this.record = record;
@@ -204,7 +209,7 @@ class Controller extends EventEmitter {
   async switchSource(key) {
     return this.exclusive(async () => {
       if (!this.record) throw transport.fail('PAIRING');
-      if (!Object.values(PORTS).some(x => x.key === key)) throw transport.fail('PROTOCOL');
+      if (typeof key !== 'string') throw transport.fail('PROTOCOL');
       const rows = await this.refresh();
       const target = rows.find(x => x.key === key);
       if (!target) throw transport.fail('PROTOCOL');
@@ -227,7 +232,7 @@ class Controller extends EventEmitter {
           let agrees = true; independent = false;
           try {
             const tv = await this.io.ipCall(this.record.host, this.record.ipPin, 'getTVStates', this.record.token);
-            agrees = tv.inputSource === target.ip; independent = agrees;
+            if (target.ip) { agrees = tv.inputSource === target.ip; independent = agrees; }
           } catch (error) {
             if (error.code === 'CERTIFICATE') throw error;
             // IP Control can transiently refuse reads during a source transition.

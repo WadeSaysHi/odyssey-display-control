@@ -10,6 +10,8 @@ async function diagnose({ win, controller, safeStorage }) {
   await fs.mkdir(folder, { recursive: true });
   const report = { platform: process.platform, encryption: false, storageRoundTrip: false, rendered: false, hardwareRead: null, computerDisplayQuery: false, signalSection: false };
   try {
+    await controller.init();
+    const target = controller.active || controller;
     const store = new Store(path.join(folder, 'test-store'), safeStorage);
     report.encryption = await safeStorage.isAsyncEncryptionAvailable();
     const record = { host: 'fixture', identity: 'fixture', mobilePin: 'fixture', ipPin: 'fixture', token: crypto.randomBytes(32).toString('hex') };
@@ -20,14 +22,14 @@ async function diagnose({ win, controller, safeStorage }) {
     if (hostArg) {
       const host = t.validateHost(hostArg.slice('--monitor-host='.length));
       const device = await t.probe(host);
-      controller.record = { host, ...device, ipPin: await t.fingerprint(host, 1516) };
+      target.record = { host, ...device, ipPin: await t.fingerprint(host, 1516) };
       controller.update({ paired: true });
-      await controller.refresh();
+      await target.refresh();
       controller.update({ message: 'Connected. Current input refreshed.' });
-      report.hardwareRead = Boolean(controller.state.current);
+      report.hardwareRead = Boolean(target.state.current);
     }
-    await controller.information.read();
-    report.computerDisplayQuery = controller.information.snapshot().computerFresh;
+    await target.information.read();
+    report.computerDisplayQuery = target.information.snapshot().computerFresh;
     if (win.webContents.isLoading()) await new Promise(resolve => win.webContents.once('did-finish-load', resolve));
     win.webContents.send('monitor:state', controller.snapshot());
     if (hostArg) await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
@@ -35,7 +37,7 @@ async function diagnose({ win, controller, safeStorage }) {
       const timeout = setTimeout(() => { clearInterval(timer); reject(new Error('Render timeout')); }, 4000);
     })`);
     await win.webContents.executeJavaScript('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
-    report.rendered = await win.webContents.executeJavaScript("document.querySelector('h1').textContent === 'Odyssey OLED G8' && typeof window.require === 'undefined' && !!window.monitor");
+    report.rendered = await win.webContents.executeJavaScript("document.querySelector('h1').textContent === 'Odyssey Display Control' && typeof window.require === 'undefined' && !!window.monitor");
     report.signalSection = await win.webContents.executeJavaScript("document.querySelectorAll('.signal-item').length === 5 && !!document.querySelector('#refresh-information')");
     await fs.writeFile(path.join(folder, 'desktop.png'), (await win.webContents.capturePage()).toPNG());
   } catch (error) { report.error = error.code || 'DIAGNOSTIC_FAILURE'; }

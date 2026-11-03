@@ -86,7 +86,7 @@ function renderInformation(state, busy) {
   $('computer-query-status').textContent = `This Computer: ${ageText(info.computer, info.computerFresh)}`;
   $('information-error').textContent = [info.monitor.error, info.computer.error, info.monitor.at && !fresh ? 'Monitor readings are stale. Refresh before making changes.' : ''].filter(Boolean).join(' ');
   $('refresh-information').disabled = busy; $('refresh-information').textContent = busy ? 'Please wait…' : 'Refresh';
-  if (controlContext !== state.current) { controlContext = state.current; volumeDirty = false; volumeDraft = null; pictureDrafts.clear(); $('picture-controls').replaceChildren(); }
+  if (controlContext !== `${state.deviceId}:${state.current}`) { controlContext = `${state.deviceId}:${state.current}`; volumeDirty = false; volumeDraft = null; pictureDrafts.clear(); $('picture-controls').replaceChildren(); }
   const volume = info.controls.find(c => c.key === 'volume');
   lastVolume = volume?.value ?? null; volumeEnabled = !busy && fresh && volume?.enabled;
   if (!volumeDirty) volumeDraft = fresh ? lastVolume : volumeDraft;
@@ -118,10 +118,11 @@ function renderInformation(state, busy) {
   readingRows('picture-readings', [['pictureMode', 'Picture mode'], ['colorTone', 'Color tone'], ['color', 'Color level', 'Raw API value; scale uncalibrated'], ['tint', 'Tint', 'Raw API value; scale uncalibrated']], info, state.current);
   readingRows('sound-readings', [['soundMode', 'Sound mode', 'Read-only · Monitor'], ['speakerOutput', 'Sound output', 'Read-only · Monitor']], info, state.current);
   readingRows('device-readings', [['power', 'Power state', 'Monitor query; power control unverified']], info, state.current);
-  const displayKey = JSON.stringify([info.computer.displays, info.association]);
+  const displayKey = JSON.stringify([state.deviceId, info.computer.displays, info.association, state.sources]);
   if (displayKey !== displaySignature && !document.querySelector('.association-row:focus-within')) {
     displaySignature = displayKey;
     $('computer-display').replaceChildren(...info.computer.displays.map(d => { const option = element('option', '', `${d.label}: ${d.width} × ${d.height}`); option.value = d.key; return option; }));
+    $('computer-input').replaceChildren(...[{key:'',label:'Not associated'}, ...state.sources].map(s => { const o = element('option','',s.label || s.key); o.value=s.key; return o; }));
     $('computer-display').value = info.association?.displayKey || info.computer.displays[0]?.key || ''; $('computer-input').value = info.association?.input || '';
   }
   $('computer-output').textContent = info.computer.displays.map(d => `${d.label}: ${d.width} × ${d.height}, ${d.refreshRate ? Number(d.refreshRate.toFixed(3)) + ' Hz' : 'refresh rate unknown'} (This Computer; ${info.computerFresh ? 'OS output' : 'stale'})`).join(' · ') || 'This Computer display information is unavailable.';

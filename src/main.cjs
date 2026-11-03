@@ -1,8 +1,9 @@
 const { app, BrowserWindow, ipcMain, Menu, safeStorage, dialog, nativeTheme } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { Controller, messages } = require('./controller.cjs');
-const { Store } = require('./store.cjs');
+const { messages } = require('./controller.cjs');
+const { Catalog } = require('./catalog.cjs');
+const { Fleet } = require('./fleet.cjs');
 const { DesktopTray } = require('./tray.cjs');
 const { Appearance } = require('./appearance.cjs');
 const { queryDisplays } = require('./local-display.cjs');
@@ -37,22 +38,24 @@ else {
       win.webContents.send('monitor:appearance', appearanceState());
     };
     nativeTheme.on('updated', syncChrome);
-    const store = new Store(app.getPath('userData'), safeStorage);
-    controller = new Controller(store, undefined, { queryDisplays });
+    const catalog = new Catalog(app.getPath('userData'), safeStorage);
+    controller = new Fleet(catalog, undefined, { queryDisplays });
     const page = pathToFileURL(path.join(__dirname, '../ui/index.html')).href;
     for (const [name, action] of Object.entries({
       state: () => controller.snapshot(),
       appearance: async value => { if (value !== undefined) { await appearance.set(value); nativeTheme.themeSource = appearance.value.theme; syncChrome(); } return appearanceState(); },
-      remote: key => controller.remoteKey(key),
-      pair: value => controller.pair(value?.host, { autoConfirm: value?.autoConfirm === true }),
-      reconnect: host => controller.reconnect(host),
-      switch: key => controller.switchSource(key),
-      forget: () => controller.forget(),
-      information: () => controller.refreshInformation(),
-      setting: value => controller.setSetting(value?.key, value?.value, value?.input),
-      associate: value => controller.associateComputer(value?.input, value?.displayKey),
+      displays: value => controller.manage(value),
+      remote: value => controller.invoke(value?.deviceId, 'remoteKey', value?.key),
+      pair: value => controller.invoke(value?.deviceId, 'pair', value?.host, { autoConfirm: value?.autoConfirm === true, controlProfile: value?.controlProfile }),
+      reconnect: value => controller.invoke(value?.deviceId, 'reconnect', value?.host),
+      switch: value => controller.invoke(value?.deviceId, 'switchSource', value?.key),
+      forget: value => controller.invoke(value?.deviceId, 'forget'),
+      information: value => controller.invoke(value?.deviceId, 'refreshInformation'),
+      setting: value => controller.invoke(value?.deviceId, 'setSetting', value?.key, value?.value, value?.input),
+      associate: value => controller.invoke(value?.deviceId, 'associateComputer', value?.input, value?.displayKey),
     })) ipcMain.handle(`monitor:${name}`, (event, value) => {
       if (event.sender !== win?.webContents || event.senderFrame?.url !== page) throw new Error('Untrusted sender');
+      if (name === 'remote' && value?.keyboard && (!win.isFocused() || !win.isVisible())) return { ok: false, message: 'Focus the Remote page to control the monitor.' };
       return action(value);
     });
     const createWindow = () => {
