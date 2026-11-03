@@ -85,11 +85,13 @@ let appearance = { theme: 'system', alwaysScrollbars: false };
 function renderAppearance(next) {
   appearance = next; document.body.classList.toggle('night', next.dark); document.body.dataset.platform = next.platform;
   document.body.classList.toggle('always-scrollbars', next.alwaysScrollbars);
+  $('keep-in-tray').checked = next.keepInTray;
+  $('background-hint').textContent = next.platform === 'darwin' ? 'Closing hides the window. Reopen from the menu-bar icon; choose Quit to exit.' : 'Closing hides the window. Reopen from the tray icon; choose Quit to exit.';
   $('always-scrollbars').checked = next.alwaysScrollbars;
   document.querySelectorAll('[data-theme]').forEach(b => { b.classList.toggle('selected', b.dataset.theme === next.theme); b.setAttribute('aria-pressed', String(b.dataset.theme === next.theme)); });
 }
 async function setAppearance(change) {
-  try { renderAppearance(await window.monitor.appearance({ theme: appearance.theme, alwaysScrollbars: appearance.alwaysScrollbars, ...change })); $('appearance-message').textContent = ''; }
+  try { renderAppearance(await window.monitor.appearance({ theme: appearance.theme, alwaysScrollbars: appearance.alwaysScrollbars, keepInTray: appearance.keepInTray, ...change })); $('appearance-message').textContent = ''; }
   catch { $('appearance-message').textContent = 'Appearance could not be saved. Try again.'; }
 }
 window.monitor.onAppearance(renderAppearance);
@@ -97,3 +99,5 @@ window.monitor.appearance().then(renderAppearance).catch(() => { $('appearance-m
 document.querySelectorAll('[data-theme]').forEach(b => b.onclick = () => void setAppearance({ theme: b.dataset.theme }));
 $('theme-toggle').onclick = () => void setAppearance({ theme: appearance.dark ? 'light' : 'dark' });
 $('always-scrollbars').onchange = e => void setAppearance({ alwaysScrollbars: e.target.checked });
+
+$('keep-in-tray').onchange = e => void setAppearance({ keepInTray: e.target.checked });

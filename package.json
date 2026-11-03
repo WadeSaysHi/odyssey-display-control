@@ -1,7 +1,7 @@
 {
-  "name": "odyssey-oled-g8-controller",
-  "version": "0.3.1",
-  "description": "Local desktop input control for Odyssey OLED G8.",
+  "name": "odyssey-display-control",
+  "version": "0.3.2",
+  "description": "Local IP control for compatible Samsung Odyssey displays.",
   "private": true,
   "main": "src/main.cjs",
   "author": "WadeSaysHi",
@@ -25,5 +25,5 @@
     "minimatch": "11.0.4",
     "glob": "14.0.3"
   },
-  "productName": "Odyssey OLED G8 Controller"
+  "productName": "Odyssey Display Control"
 }

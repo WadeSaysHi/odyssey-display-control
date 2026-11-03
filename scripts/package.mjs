@@ -19,7 +19,7 @@ await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify({ name: pkg.
 const localZip = path.join(root, '.local', `electron-v${pkg.devDependencies.electron}-${platform}-${arch}.zip`);
 const hasLocalZip = await fs.access(localZip).then(() => true, () => false);
 const results = await packager({ dir: stage, out: path.join(root, 'dist'),
-  name: 'Odyssey OLED G8 Controller', executableName: 'OdysseyController',
+  name: pkg.productName, executableName: 'OdysseyController',
   appBundleId: 'io.github.wadesayshi.odyssey-controller', appCategoryType: 'public.app-category.utilities',
   appVersion: pkg.version, platform, arch, electronVersion: pkg.devDependencies.electron,
   ...(hasLocalZip ? { electronZipDir: path.dirname(localZip) } : {}),
@@ -27,7 +27,7 @@ const results = await packager({ dir: stage, out: path.join(root, 'dist'),
   asar: { unpackDir: 'native' }, prune: false, overwrite: true, osxSign: false, osxNotarize: false,
 });
 if (args.includes('--zip')) {
-  const name = `odyssey-controller-${pkg.version}-${platform}-${arch}.zip`;
+  const name = `odyssey-display-control-${pkg.version}-${platform}-${arch}.zip`;
   const output = path.join(root, 'dist', name);
   await fs.rm(output, { force: true });
   if (process.platform === 'win32') {
@@ -37,7 +37,7 @@ if (args.includes('--zip')) {
     const encoded = Buffer.from(command, 'utf16le').toString('base64');
     execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded]);
   } else if (platform === 'darwin') {
-    execFileSync('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', path.join(results[0], 'Odyssey OLED G8 Controller.app'), output]);
+    execFileSync('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', path.join(results[0], pkg.productName + '.app'), output]);
   } else execFileSync('zip', ['-q', '-r', output, '.'], { cwd: results[0] });
   console.log(output);
 } else console.log(results.join('\n'));

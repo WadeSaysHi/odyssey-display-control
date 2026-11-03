@@ -1,6 +1,6 @@
-# Odyssey OLED G8 Controller
+# Odyssey Display Control
 
-A local macOS and Windows app for switching Odyssey OLED G8 between USB-C, DisplayPort and HDMI.
+Local IP control for compatible Samsung Odyssey displays on macOS and Windows. Hardware-tested with Odyssey OLED G8; broader compatibility is not yet verified.
 
 Enter the monitor’s IP address, select **Pair monitor**, and allow access on the monitor. The app reads the actual input every three seconds and verifies each switch. External changes update the app without switching back automatically.
 
@@ -10,9 +10,11 @@ Credentials and connection details are encrypted using macOS Keychain or Windows
 
 A three-pane window keeps the animated volume wheel beside input and picture settings. Bright, Night and System appearance include subtle scroll indicators. Signal readings identify Monitor or This Computer, with timestamps and Refresh. Supported writes require read-back; new color and sound-output readings stay read-only. Unsupported capability rows are omitted. [Details](docs/information-and-settings.md).
 
+Use the macOS menu-bar or Windows tray icon for inputs, volume/mute, refresh and reconnect. Closing the window keeps controls available; disable this in Appearance if preferred. Choose **Quit Odyssey Display Control** to exit. No login item is installed.
+
 ## Run
 
-Download a ZIP from [Releases](https://github.com/WadeSaysHi/odyssey-oled-g8-controller/releases). Extract it and open the app. Builds are unsigned and not notarized; macOS or Windows may require manual approval. macOS releases target Apple silicon; Windows releases target x64.
+Download a ZIP from [Releases](https://github.com/WadeSaysHi/odyssey-display-control/releases). Extract it and open the app. Builds are unsigned and not notarized; macOS or Windows may require manual approval. macOS releases target Apple silicon; Windows releases target x64.
 
 Or use Node.js 22.12+:
 
@@ -29,6 +31,6 @@ npm run test:ui
 npm run dist
 ```
 
-Direct switching and verification were tested on hardware. See [validation](docs/validation.md) for platform coverage and limitations, including standby, firmware differences and PS5 CEC. [Design notes](docs/design.md).
+Direct switching and verification were tested on hardware. See [validation](docs/validation.md) for platform coverage and limitations, including standby, firmware differences and PS5 CEC. [Design notes](docs/design.md). [Future development roadmap](docs/roadmap.md).
 
 Independent project; not affiliated with the monitor manufacturer.
