@@ -8,6 +8,6 @@ function create(owner){
  panel.loadFile(path.join(__dirname,'../ui/quick.html'));
  owner.panel=panel;
  owner.resizePanel=height=>{const b=owner.tray.getBounds();panel.setBounds(position(b,screen.getDisplayMatching(b).workArea,370,height));};
- return ()=>{if(panel.isVisible()){panel.hide();return;}const bounds=owner.tray.getBounds();const area=screen.getDisplayMatching(bounds).workArea;panel.setBounds(position(bounds,area,370,440));owner.opened=true;panel.show();panel.focus();panel.webContents.send('monitor:state',owner.controller.snapshot());};
+ return ()=>{if(panel.isVisible()){panel.hide();return;}const bounds=owner.tray.getBounds();const area=screen.getDisplayMatching(bounds).workArea;panel.setBounds(position(bounds,area,370,panel.getBounds().height));owner.opened=true;panel.show();panel.focus();panel.webContents.send('monitor:state',owner.controller.snapshot());};
 }
 module.exports={create,position};
