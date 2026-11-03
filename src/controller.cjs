@@ -184,6 +184,15 @@ class Controller extends EventEmitter {
       }
     });
   }
+  setControlProfile(value) {
+    return this.exclusive(async () => {
+      if (!this.record) throw transport.fail('PAIRING');
+      if (!['read-only', 'oled-g8-tested'].includes(value)) throw transport.fail('INVALID_SETTING');
+      const record = { ...this.record, controlProfile: value };
+      await this.store.save(record); this.record = record;
+      this.update({ message: 'Control profile saved. Existing pairing preserved.' });
+    });
+  }
   remoteKey(key) {
     return this.exclusive(async () => {
       if (!['KEY_UP', 'KEY_DOWN', 'KEY_LEFT', 'KEY_RIGHT', 'KEY_ENTER', 'KEY_SOURCE', 'KEY_EXIT', 'KEY_MENU', 'KEY_RETURN'].includes(key)) throw transport.fail('UNSUPPORTED');

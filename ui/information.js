@@ -1,6 +1,6 @@
 const fieldLabels = { resolution: 'Current Input Resolution', refreshRate: 'Refresh Rate', pictureMode: 'Picture Mode', soundMode: 'Sound Mode', volume: 'Volume' };
 let informationSignature = '', displaySignature = '', controlContext = null;
-let volumeDraft = null, volumeDirty = false, volumeEnabled = false, lastVolume = null, lastWheel = 0;
+let volumeDraft = null, volumeDirty = false, volumeEnabled = false, lastVolume = null, lastWheel = 0, volumeReason = '';
 const pictureDrafts = new Map();
 function element(tag, className, content) {
   const node = document.createElement(tag); if (className) node.className = className;
@@ -24,7 +24,7 @@ function paintWheel(direction = 0) {
     if (direction && !matchMedia('(prefers-reduced-motion: reduce)').matches) $('wheel-lines').animate([{ transform: `translateY(${direction > 0 ? 15 : -15}px)` }, { transform: 'translateY(0)' }], { duration: 180, easing: 'ease-out' });
   }
   $('apply-volume').disabled = !volumeEnabled || !volumeDirty;
-  $('volume-draft').textContent = !volumeEnabled ? 'Unavailable or stale · Refresh' : volumeDirty ? `Draft ${volumeDraft} · Monitor ${lastVolume}` : `Monitor value ${lastVolume}`;
+  $('volume-draft').textContent = !volumeEnabled ? volumeReason || 'Unavailable or stale · Refresh' : volumeDirty ? `Draft ${volumeDraft} · Monitor ${lastVolume}` : `Monitor value ${lastVolume}`;
 }
 function changeVolume(delta) {
   if (!volumeEnabled || volumeDraft === null) return;
@@ -88,6 +88,7 @@ function renderInformation(state, busy) {
   $('refresh-information').disabled = busy; $('refresh-information').textContent = busy ? 'Please wait…' : 'Refresh';
   if (controlContext !== `${state.deviceId}:${state.current}`) { controlContext = `${state.deviceId}:${state.current}`; volumeDirty = false; volumeDraft = null; pictureDrafts.clear(); $('picture-controls').replaceChildren(); }
   const volume = info.controls.find(c => c.key === 'volume');
+  volumeReason = busy ? 'Please wait…' : volume?.disabledReason || '';
   lastVolume = volume?.value ?? null; volumeEnabled = !busy && fresh && volume?.enabled;
   if (!volumeDirty) volumeDraft = fresh ? lastVolume : volumeDraft;
   paintWheel();

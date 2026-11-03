@@ -266,3 +266,7 @@ The user observed PS5 wake switching the monitor to HDMI, then restored the inpu
 ## v0.5.0 capability presentation and quick controls
 
 Implemented configurable display family, artwork aspect ratio and explicit yes/no/unknown speaker metadata in Connection. Speakerless/unknown sound controls are disabled with a reminder; Appearance can hide sound in the main and quick panels. The menu-bar/tray opens a compact anchored panel with horizontal inputs, a volume wheel, mute and Open/Quit; the redundant refresh/reconnect/message block is removed. Mixed-DPI physical multi-screen validation and additional Odyssey hardware remain outstanding.
+
+## v0.5.1 Windows control-profile fix
+
+Read-only control profiles now have an explicit Save controls action independent of pairing. Disabled controls explain the relevant profile, speaker or freshness condition. Windows diagnosis confirmed that choosing a display family and speakers alone does not change the control profile. Existing secure authorization is preserved.

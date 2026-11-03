@@ -41,6 +41,12 @@ async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const 
     assert.equal(await page.locator('#settings').evaluate(n=>n.open),true);
     assert.equal(await page.locator('#host').inputValue(),'');
     await page.locator('#close').click();
+    // Saving a local control profile must preserve the authorization record and avoid pairing.
+    await app.evaluate(({app})=>{const c=app.testTray.controller.active;clearInterval(c.timer);c.record={host:'fixture',identity:'fixture',mobilePin:'fixture',ipPin:'fixture',token:'test-profile-token',controlProfile:'read-only'};c.update({paired:true});});
+    await page.locator('#connection').click();await page.locator('#control-profile').selectOption('oled-g8-tested');await page.locator('#save-controls').click();
+    await page.waitForFunction(()=>document.querySelector('#settings-message').textContent.includes('pairing preserved'));
+    assert.equal(await app.evaluate(({app})=>app.testTray.controller.active.record.token),'test-profile-token');
+    await page.locator('#close').click();
     // The following fixtures exercise renderer state transitions without hardware writes.
     const report = empty();
     report.monitor = { status: 'fresh', at: Date.now(), input: 'usb-c', error: '', values: { volume: 15, pictureMode: 'GamePCHDR', soundMode: 'Game', speakerOutput: 'Internal', colorTone: 'Standard', color: 25, tint: 0, power: 'On' }, controls: { volume: 15, mute: 'muteOff', backlight: 50, contrast: 50, sharpness: 10 } };

@@ -46,8 +46,9 @@ function presentation(report, current, online, association = {}, now = Date.now(
 class Information {
   constructor(controller, queryDisplays = async () => []) { this.c = controller; this.queryDisplays = queryDisplays; this.report = empty(); this.lastAttempt = 0; }
   snapshot() { const info = presentation(this.report, this.c.state.current, this.c.state.status === 'online', this.c.record?.association);
-    if (this.c.record?.controlProfile !== 'oled-g8-tested') info.controls.forEach(c => { c.enabled = false; });
-    if(this.c.options?.speakers && this.c.options.speakers()!=='yes') info.controls.filter(c=>c.group==='sound').forEach(c=>{c.enabled=false;});
+    for(const c of info.controls)c.disabledReason=c.enabled?'':!info.monitorFresh?'Readings are unavailable or stale. Refresh.':'This setting is unavailable from the monitor.';
+    if (this.c.record?.controlProfile !== 'oled-g8-tested') info.controls.forEach(c => { c.enabled = false; c.disabledReason='Read-only control profile. Choose the tested G8 profile in Connection and Save controls.'; });
+    if(this.c.options?.speakers && this.c.options.speakers()!=='yes') info.controls.filter(c=>c.group==='sound').forEach(c=>{c.enabled=false;c.disabledReason=this.c.options.speakers()==='no'?'This display has no built-in speakers.':'Speaker availability is unknown. Confirm it in Connection.';});
     return info; }
   publish() { this.c.update({ information: this.snapshot() }); }
   invalidate() {

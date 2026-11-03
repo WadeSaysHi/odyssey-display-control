@@ -49,6 +49,7 @@ else {
       panel: value => {if(value && Number.isInteger(value.height) && value.height>=150 && value.height<=600){desktopTray?.resizePanel?.(value.height);return;} desktopTray?.panel?.hide(); if(value==='open'){win.show();win.focus();} else if(value==='quit')app.quit();},
       displays: value => controller.manage(value),
       remote: value => controller.invoke(value?.deviceId, 'remoteKey', value?.key),
+      profile: value => controller.invoke(value?.deviceId, 'setControlProfile', value?.profile),
       pair: value => controller.invoke(value?.deviceId, 'pair', value?.host, { autoConfirm: value?.autoConfirm === true, controlProfile: value?.controlProfile }),
       reconnect: value => controller.invoke(value?.deviceId, 'reconnect', value?.host),
       switch: value => controller.invoke(value?.deviceId, 'switchSource', value?.key),

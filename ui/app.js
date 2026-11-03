@@ -19,7 +19,8 @@ function render(next) {
   const ratio={'16:9':16/9,'21:9':21/9,'32:9':32/9}[displayModel.ratio]||16/9;
   document.querySelector('.monitor-art').style.setProperty('--panel-ratio',ratio);
   document.querySelector('.inspector').classList.toggle('no-speakers',displayModel.speakers!=='yes');
-  $('sound-notice').textContent=displayModel.speakers==='no'?'This display has no built-in speakers. You can hide this panel in Appearance.':displayModel.speakers==='unknown'?'Built-in speaker availability is unknown. Confirm it in Connection. You can hide this panel in Appearance.':'';
+  $('save-controls').disabled=state.busy||isPending()||!state.paired;
+  $('sound-notice').textContent=displayModel.speakers==='no'?'This display has no built-in speakers. You can hide this panel in Appearance.':displayModel.speakers==='unknown'?'Built-in speaker availability is unknown. Confirm it in Connection. You can hide this panel in Appearance.':state.controlProfile==='read-only'?'Controls are read-only. In Connection choose the tested G8 profile and Save controls.':'';
   $('device-title').title = state.deviceName || 'Display';
   const devices = state.devices || [];
   const signature = JSON.stringify(devices.map(d => [d.id, d.name, d.status]));
@@ -182,3 +183,5 @@ async function changeDisplay(value, open = false) {
 
 $('hide-sound').onchange=e=>void setAppearance({hideSound:e.target.checked});
 $('save-display-profile').onclick=()=>void act(()=>window.monitor.displays({action:'configure',id:state.deviceId,presentation:{family:$('display-family').value,ratio:$('display-ratio').value,speakers:$('display-speakers').value}}));
+
+$('save-controls').onclick=()=>void act(()=>window.monitor.setControlProfile($('control-profile').value));
