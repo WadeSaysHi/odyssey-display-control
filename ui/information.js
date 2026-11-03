@@ -118,6 +118,6 @@ function renderInformation(state, busy) {
     $('computer-display').value = info.association?.displayKey || info.computer.displays[0]?.key || ''; $('computer-input').value = info.association?.input || '';
   }
   $('computer-output').textContent = info.computer.displays.map(d => `${d.label}: ${d.width} × ${d.height}, ${d.refreshRate ? Number(d.refreshRate.toFixed(3)) + ' Hz' : 'refresh rate unknown'} (This Computer; ${info.computerFresh ? 'OS output' : 'stale'})`).join(' · ') || 'This Computer display information is unavailable.';
-  $('save-association').disabled = busy || !state.paired || !info.computerFresh;
-  $('computer-input').disabled = busy; $('computer-display').disabled = busy;
+  $('save-association').disabled = busy || state.status!=='online' || !state.paired || !info.computerFresh;
+  $('computer-input').disabled = busy || state.status!=='online'; $('computer-display').disabled = busy || !info.computerFresh;
 }

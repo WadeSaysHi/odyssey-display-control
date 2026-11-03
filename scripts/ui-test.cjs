@@ -29,7 +29,7 @@ async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const 
     await page.waitForFunction(()=>document.querySelector('#display-name').value==='Display 2');
     await page.locator('#display-name').fill('Desk display');await page.locator('#rename-display').click();
     await page.getByRole('heading',{name:'Desk display',exact:true}).waitFor();
-    await page.locator('.display-details summary').click();
+    await page.getByText('Display model, shape and speakers',{exact:true}).click();
     await page.locator('#display-family').selectOption('Odyssey G9');await page.locator('#display-ratio').selectOption('32:9');await page.locator('#display-speakers').selectOption('no');await page.locator('#save-display-profile').click();
     await page.getByRole('heading',{name:'Odyssey G9',exact:true}).waitFor();
     assert.equal(await page.locator('.inspector').evaluate(n=>n.classList.contains('no-speakers')),true);
@@ -139,6 +139,22 @@ async function mainWindow(a){await a.firstWindow();for(let n=0;n<200;n++){const 
     await page.emulateMedia({ forcedColors: 'none' });
     await fs.mkdir(path.join(__dirname, '../artifacts'), { recursive: true });
     await page.screenshot({ path: path.join(__dirname, '../artifacts/compact.png') });
+    const originalSources=snapshot.sources;const originalCurrent=snapshot.current;snapshot.current=report.monitor.input='displayport1';snapshot.displayProfile={family:'Example Odyssey display',ratio:'21:9',speakers:'yes'};
+    snapshot.sources=[{key:'hdmi',label:'HDMI 1',type:'hdmi'},{key:'hdmi2',label:'HDMI 2',type:'hdmi',audioReturn:'earc',audioReturnSource:'reported'},{key:'displayport1',label:'DisplayPort 1',type:'displayport'},{key:'displayport2',label:'DisplayPort 2',type:'displayport'}];
+    await page.setViewportSize({width:1250,height:840});await send();await page.locator('#content').evaluate(n=>n.scrollTop=0);
+    assert.equal(await page.locator('[data-source]').count(),4);assert.equal(await page.locator('[data-source="usb-c"]').count(),0);
+    assert.equal(await page.locator('#input-list').evaluate(n=>getComputedStyle(n).gridTemplateColumns.split(' ').length),4);
+    assert.match(await page.locator('[data-source="hdmi2"]').textContent(),/eARC/);
+    await page.screenshot({path:path.join(__dirname,'../artifacts/four-inputs-wide.png')});
+    await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('monitor:input');ipcMain.handle('monitor:input',(_e,v)=>{globalThis.savedInputPreference=v;return {ok:true};});});
+    await page.locator('#connection').click();await page.getByText('Input labels and audio return',{exact:true}).click();
+    await page.getByLabel('Label for HDMI 2',{exact:true}).fill('Console');await page.getByLabel('Audio return label for HDMI 2',{exact:true}).selectOption('earc');await page.getByRole('button',{name:'Save label for HDMI 2',exact:true}).click();
+    assert.deepEqual(await app.evaluate(()=>globalThis.savedInputPreference),{key:'hdmi2',preference:{label:'Console',audioReturn:'earc'},deviceId:initial.deviceId});await page.locator('#close').click();
+    await page.setViewportSize({width:900,height:650});await page.waitForFunction(()=>getComputedStyle(document.querySelector('#input-list')).gridTemplateColumns.split(' ').length===2);
+    assert.equal(await page.locator('#input-list').evaluate(n=>n.scrollWidth>n.clientWidth),false);await page.screenshot({path:path.join(__dirname,'../artifacts/four-inputs-compact.png')});
+    snapshot.sources=Array.from({length:16},(_,i)=>({key:'fixture-'+i,label:'Input '+(i+1),type:'other'}));await send();assert.equal(await page.locator('[data-source]').count(),16);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    snapshot.sources=[];await send();assert.equal(await page.locator('[data-source]').count(),0);await page.getByText('No video inputs reported. Refresh or check Connection.',{exact:true}).waitFor();
+    snapshot.sources=originalSources;snapshot.current=report.monitor.input=originalCurrent;delete snapshot.displayProfile;await send();
     assert.deepEqual(errors, []); console.log('UI: secure bridge, connection validation, wheel and slider drafts, source/stale transitions, native theme, scrollbar keyboard/drag, reduced motion, forced colors: PASS');
   } finally { const folder = await app.evaluate(({ app }) => app.getPath('userData')).catch(() => null); await app.close(); if (folder) await fs.rm(folder, { recursive: true, force: true }); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

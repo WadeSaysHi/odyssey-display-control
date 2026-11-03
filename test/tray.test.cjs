@@ -16,7 +16,7 @@ function fixture() {
 const tick = () => new Promise(resolve => setImmediate(resolve));
 test('tray exposes available sources and disables stale or busy controls', () => {
   const state = fresh(); let template = menuTemplate(state, {});
-  assert.equal(template.find(x => x.id === 'source-displayport').enabled, false);
+  assert.equal(template.find(x => x.id === 'source-displayport'), undefined);
   assert.equal(template.find(x => x.id === 'source-usb-c').checked, true);
   state.information.monitor.at -= 31000; template = menuTemplate(state, {});
   assert.equal(template.find(x => x.id === 'volume-up').enabled, false);

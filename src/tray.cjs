@@ -12,9 +12,9 @@ function menuTemplate(state, actions) {
   return [
     { label: state.deviceName || 'Odyssey Display Control', enabled: false },
     ...(state.devices?.length ? [{ label: 'Select display', submenu: state.devices.map(d => ({ label: d.name, type: 'radio', checked: d.id === state.deviceId, click: () => actions.select(d.id) })) }] : []),
-    { label: `${state.busy ? 'Working…' : online ? 'Connected' : state.paired ? 'Disconnected' : 'Not paired'} — ${LABELS[state.current] || 'Input unknown'}`, enabled: false },
+    { label: `${state.busy ? 'Working…' : online ? 'Connected' : state.paired ? 'Disconnected' : 'Not paired'} — ${state.sources.find(s=>s.key===state.current)?.label || LABELS[state.current] || 'Input unknown'}`, enabled: false },
     { type: 'separator' },
-    ...[...new Map([...Object.entries(LABELS), ...state.sources.map(s => [s.key, s.label || LABELS[s.key] || s.key])]).entries()].map(([key, label]) => ({ id: `source-${key}`, label, type: 'radio', checked: state.current === key,
+    ...state.sources.map(({key,label=LABELS[key]||'Input'}) => ({ id: `source-${key}`, label, type: 'radio', checked: state.current === key,
       enabled: enabled && state.sources.some(s => s.key === key), click: () => actions.source(key, state.deviceId) })),
     { type: 'separator' },
     { label: volume ? `Volume: ${volume.value}` : 'Volume unavailable — refresh', enabled: false },
@@ -74,7 +74,7 @@ class DesktopTray {
     if (this.destroyed) return;
     const state = this.controller.snapshot();
     if(this.panel && !this.panel.isDestroyed()) this.panel.webContents.send('monitor:state',state);
-    this.tray.setToolTip(`Odyssey Display Control — ${state.busy ? 'Working' : state.status === 'online' ? LABELS[state.current] || 'Connected' : 'Disconnected'}`);
+    this.tray.setToolTip(`Odyssey Display Control — ${state.busy ? 'Working' : state.status === 'online' ? state.sources.find(s=>s.key===state.current)?.label || LABELS[state.current] || 'Connected' : 'Disconnected'}`);
     if (this.opened) return;
     const template = menuTemplate(state, this.actions), signature = JSON.stringify(template);
     if (signature === this.signature) return;

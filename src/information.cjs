@@ -1,5 +1,5 @@
 const { fail } = require('./transport.cjs');
-const INPUT = { 'usb-c': 'USB-C', displayport: 'DISPLAY PORT', hdmi: 'HDMI1', hdmi2: 'HDMI2', hdmi3: 'HDMI3', hdmi4: 'HDMI4' };
+const {resolveInput}=require('./sources.cjs');
 const SETTINGS = {
   volume: { label: 'Volume', group: 'sound', method: 'directVolumeControl', field: 'volume', min: 0, max: 100 },
   mute: { label: 'Mute', group: 'sound', method: 'muteControl', field: 'mute', choices: ['muteOff', 'muteOn'] },
@@ -15,13 +15,13 @@ function empty() {
   return { monitor: { status: 'unknown', at: null, attemptedAt: null, input: null, values: {}, controls: {}, error: '' },
     computer: { status: 'unknown', at: null, attemptedAt: null, displays: [], error: '' } };
 }
-function presentation(report, current, online, association = {}, now = Date.now()) {
+function presentation(report, current, online, association = {}, now = Date.now(), inputFresh = false) {
   association ||= {};
   const m = report.monitor, pc = report.computer;
   const monitorFresh = online && m.status === 'fresh' && now - m.at < 30000 && m.input === current;
   const computerFresh = pc.status === 'fresh' && now - pc.at < 30000;
   const display = pc.displays.find(d => d.key === association.displayKey);
-  const usable = monitorFresh && computerFresh && display && association.input === current;
+  const usable = online && (monitorFresh || inputFresh) && computerFresh && display && association.input === current;
   const field = (value, source, status, note) => ({ value, source, status, note });
   const monitorField = name => {
     const value = m.input === current ? m.values[name] : null;
@@ -45,7 +45,7 @@ function presentation(report, current, online, association = {}, now = Date.now(
 }
 class Information {
   constructor(controller, queryDisplays = async () => []) { this.c = controller; this.queryDisplays = queryDisplays; this.report = empty(); this.lastAttempt = 0; }
-  snapshot() { const info = presentation(this.report, this.c.state.current, this.c.state.status === 'online', this.c.record?.association);
+  snapshot() { const info = presentation(this.report, this.c.state.current, this.c.state.status === 'online', this.c.record?.association, Date.now(), !this.report.monitor.inputConflict&&this.c.state.status==='online'&&this.c.state.current!==null&&Date.now()-this.c.state.updatedAt<30000);
     for(const c of info.controls)c.disabledReason=c.enabled?'':!info.monitorFresh?'Readings are unavailable or stale. Refresh.':'This setting is unavailable from the monitor.';
     if (this.c.record?.controlProfile !== 'oled-g8-tested') info.controls.forEach(c => { c.enabled = false; c.disabledReason='Read-only control profile. Choose the tested G8 profile in Connection and Save controls.'; });
     if(this.c.options?.speakers && this.c.options.speakers()!=='yes') info.controls.filter(c=>c.group==='sound').forEach(c=>{c.enabled=false;c.disabledReason=this.c.options.speakers()==='no'?'This display has no built-in speakers.':'Speaker availability is unknown. Confirm it in Connection.';});
@@ -55,6 +55,10 @@ class Information {
     this.lastAttempt = 0;
     this.report.monitor = { ...empty().monitor, status: 'unknown', error: 'Input changed. Refresh required.' };
     this.publish();
+  }
+  matches(value,key) {
+    const inventory=this.c.inventory || [];
+    return resolveInput(value,inventory)===key;
   }
   async call(method, parameters) {
     const r = this.c.record;
@@ -77,11 +81,14 @@ class Information {
   }
   async readMonitor() {
     const attemptedAt = Date.now();
+    let inputConflict=this.report.monitor.inputConflict||false;
     try {
       if (!this.c.record || this.c.state.status !== 'online') throw fail('OFFLINE');
       const before = await this.call('getTVStates');
       const input = this.c.state.current;
-      if (!input || before.inputSource !== INPUT[input]) throw fail('SETTING_CONTEXT');
+      const beforeInput=resolveInput(before.inputSource,this.c.inventory||[]);
+      if(beforeInput!==null)inputConflict=beforeInput!==input;
+      if (!input || !this.matches(before.inputSource,input)) throw fail('SETTING_CONTEXT');
       const video = await this.optional('getVideoStates');
       const tone = await this.optional('colorToneControl');
       const power = await this.optional('powerControl');
@@ -93,8 +100,10 @@ class Information {
       }
       const after = await this.call('getTVStates');
       await this.c.refresh();
-      if (before.inputSource !== after.inputSource || this.c.state.current !== input) throw fail('SETTING_CONTEXT');
-      this.report.monitor = { status: 'fresh', at: Date.now(), attemptedAt, input, error: '', controls,
+      const afterInput=resolveInput(after.inputSource,this.c.inventory||[]);
+      if(afterInput!==null)inputConflict=afterInput!==input;
+      if (!this.matches(after.inputSource,input) || this.c.state.current !== input) throw fail('SETTING_CONTEXT');
+      this.report.monitor = { status: 'fresh', at: Date.now(), attemptedAt, input, inputConflict:false, error: '', controls,
         values: { pictureMode: text(after.pictureMode), soundMode: text(after.soundMode),
           volume: valid(SETTINGS.volume, after.volume) ? after.volume : null,
           speakerOutput: /^(internal|external)$/i.test(after.speakerSelect || '') ? after.speakerSelect.toLowerCase() === 'internal' ? 'Internal' : 'External' : null,
@@ -103,7 +112,7 @@ class Information {
           power: power?.power === 'powerOn' ? 'On' : power?.power === 'powerOff' ? 'Off' : null } };
     } catch (error) {
       const contextChanged = error.code === 'SETTING_CONTEXT';
-      this.report.monitor = { ...(contextChanged ? empty().monitor : this.report.monitor), status: 'unavailable', attemptedAt,
+      this.report.monitor = { ...(contextChanged ? empty().monitor : this.report.monitor), status: 'unavailable', attemptedAt, inputConflict,
         error: !this.c.record ? 'Pair the monitor to read its details.' : contextChanged ? 'Input changed during the query. Refresh to read the new input.' :
           'Monitor detail query failed; controls are disabled.' + (this.report.monitor.at ? ' Retained values are stale.' : '') };
     }
@@ -119,7 +128,7 @@ class Information {
     await this.c.refresh();
     const input = this.c.state.current;
     const before = await this.call('getTVStates');
-    if (!input || input !== expectedInput || before.inputSource !== INPUT[input]) throw fail('SETTING_CONTEXT');
+    if (!input || input !== expectedInput || !this.matches(before.inputSource,input)) throw fail('SETTING_CONTEXT');
     const getter = await this.call(definition.method);
     if (!valid(definition, getter[definition.field])) throw fail('UNSUPPORTED');
     await this.call(definition.method, { [definition.field]: value });
@@ -127,7 +136,7 @@ class Information {
       const actual = await this.call(definition.method);
       const context = await this.call('getTVStates');
       await this.c.refresh();
-      if (context.inputSource !== before.inputSource || this.c.state.current !== input) throw fail('SETTING_CONTEXT');
+      if (!this.matches(context.inputSource,input) || this.c.state.current !== input) throw fail('SETTING_CONTEXT');
       if (actual[definition.field] !== value) throw fail('SETTING_VERIFY');
     }
     // The two fresh getter/context pairs above already verified this setting.

@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('monitor', Object.freeze({
   },
   state: async () => { const before = revision; const state = await ipcRenderer.invoke('monitor:state'); if (before === revision) deviceId = state.deviceId; return state; },
   displays: value => ipcRenderer.invoke('monitor:displays', value),
+  configureInput: (key, preference) => send('input',{key,preference}),
   setControlProfile: profile => send('profile', {profile}),
   pair: (host, autoConfirm = true, controlProfile = 'read-only') => send('pair', { host, autoConfirm, controlProfile }),
   reconnect: host => send('reconnect', { host }),

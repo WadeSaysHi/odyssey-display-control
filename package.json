@@ -1,6 +1,6 @@
 {
   "name": "odyssey-display-control",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Local IP control for compatible Samsung Odyssey displays.",
   "private": true,
   "main": "src/main.cjs",

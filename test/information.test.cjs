@@ -39,7 +39,7 @@ test('Mac display parser reads runtime modes and strips model and hardware ident
 });
 function fixture({ noApply = false, changeInput = false, failMonitor = false, failComputer = false } = {}) {
   let current = 'usb-c', volume = 5, writes = 0;
-  const c = { state: { current, status: 'online' }, record: {}, update() {}, refresh: async () => {}, io: { ipCall: async (_host, _pin, method, _token, _timeout, params) => {
+  const c = { inventory:[{key:'usb-c',type:'usb-c',number:null},{key:'hdmi',type:'hdmi',number:1}], state: { current, status: 'online' }, record: {}, update() {}, refresh: async () => {}, io: { ipCall: async (_host, _pin, method, _token, _timeout, params) => {
     if (failMonitor) throw fail('OFFLINE');
     if (method === 'getTVStates') return { inputSource: current === 'usb-c' ? 'USB-C' : 'HDMI1', pictureMode: 'GamePCHDR', soundMode: 'Game', volume };
     if (method === 'directVolumeControl') { if (params) { writes++; if (!noApply) volume = params.volume; if (changeInput) current = c.state.current = 'hdmi'; } return { volume }; }

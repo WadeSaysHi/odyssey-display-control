@@ -274,3 +274,7 @@ Read-only control profiles now have an explicit Save controls action independent
 ## v0.5.2 motion refinement
 
 Persistent spring-driven wheel tracks replace row reconstruction in both windows. Sidebar selection slides between tabs; sound visibility animates layout, opacity and panel height. Reversal preserves current motion; reduced-motion preferences snap transitions. No monitor protocol or credential changes.
+
+## v0.6.0 reported input inventories
+
+Implemented inventory-driven source selection without a fixed port list, stable anonymous handles for unfamiliar IDs, normalized known HDMI/DP/USB-C aliases, optional local labels/audio-return badges, adaptive input grids and graceful empty/error states. Source verification and input associations use the dynamic inventory; known independent conflicts still prevent success. Input-source freshness can support explicitly associated OS mode data when unrelated picture getters fail. Camera sources remain excluded, credentials and legacy keys preserved. Simulated software coverage replaces an additional-hardware release gate; universal network-protocol compatibility is not claimed.

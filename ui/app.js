@@ -13,7 +13,7 @@ function freshness() {
 function render(next) {
   const targetChanged = state?.deviceId !== next.deviceId;
   state = next;
-  if (targetChanged) { stopKeyboard(); if (settings.open) fillConnection(); }
+  if (targetChanged) { stopKeyboard(); if (settings.open) {fillConnection();renderInputPreferences();} }
   const displayModel=state.displayProfile || {family:state.controlProfile==='oled-g8-tested'?'Odyssey OLED G8':state.deviceName,ratio:state.controlProfile==='oled-g8-tested'?'21:9':'unknown',speakers:'yes'};
   $('device-title').textContent = displayModel.family || state.deviceName || 'Display';
   const ratio={'16:9':16/9,'21:9':21/9,'32:9':32/9}[displayModel.ratio]||16/9;
@@ -34,17 +34,19 @@ function render(next) {
   $('keyboard-control').disabled = state.status !== 'online' || !state.remoteAvailable;
   const profile = state.controlProfile === 'oled-g8-tested';
   $('capability-status').textContent = `${state.deviceName || 'Display'}: ${state.sources.length} detected inputs. ${profile ? 'Odyssey OLED G8 control profile; verified writes require fresh monitor read-back.' : 'Untested display: settings are read-only. Input selection is confirmed after each action; remote effects need observation.'} Other Odyssey hardware compatibility is unverified.`;
-  const inputRows = state.sources.length ? state.sources : [{key:'usb-c',label:'USB-C'}, {key:'displayport',label:'DisplayPort'}, {key:'hdmi',label:'HDMI'}];
+  const inputRows = state.sources;
   const inputSignature = JSON.stringify(inputRows);
   if ($('input-list').dataset.signature !== inputSignature) {
     $('input-list').dataset.signature = inputSignature;
     $('input-list').replaceChildren(...inputRows.map(source => {
       const b = document.createElement('button'); b.className = 'source'; b.dataset.source = source.key;
       const icon = document.querySelector('.device-mark svg').cloneNode(true); b.append(icon);
-      for (const [cls, text] of [['source-name',source.label || labels[source.key] || source.key],['source-detail','Monitor input'],['source-status','Connect to select']]) { const n = document.createElement('span'); n.className = cls; n.textContent = text; b.append(n); }
+      for (const [cls, text] of [['source-name',source.label || labels[source.key] || source.key],['source-detail',source.audioReturn?`${source.audioReturn==='earc'?'eARC':'ARC'} · ${source.audioReturnSource==='configured'?'Local label':'Reported'}`:'Monitor input'],['source-status','Connect to select']]) { const n = document.createElement('span'); n.className = cls; n.textContent = text; b.append(n); }
       b.onclick = () => void act(() => window.monitor.switch(source.key)); return b;
     }));
   }
+  if(!inputRows.length){const empty=document.createElement('p');empty.className='input-empty';empty.textContent=state.status==='online'?'No video inputs reported. Refresh or check Connection.':state.paired?'Connect the display to read its inputs.':'Pair a display to discover its inputs.';$('input-list').replaceChildren(empty);}
+  layoutInputs();
   const inputLabel = state.sources.find(s => s.key === state.current)?.label || labels[state.current];
   const busy = state.busy || isPending();
   $('sidebar-status').textContent = state.status === 'online' ? '● Connected' : state.paired ? 'Disconnected' : 'Not paired';
@@ -98,7 +100,7 @@ function fillConnection() {
 }
 function openConnection() {
   stopKeyboard();
-  if (!settings.open) { fillConnection(); settings.showModal();selectNavigation('connection'); }
+  if (!settings.open) { fillConnection(); renderInputPreferences(); settings.showModal();selectNavigation('connection'); }
 }
 $('connection').addEventListener('click', openConnection);
 $('close').addEventListener('click', () => settings.close());
@@ -106,7 +108,6 @@ settings.addEventListener('cancel', event => { if (state?.busy || isPending()) e
 $('settings-form').addEventListener('submit', event => { event.preventDefault(); void act(() => window.monitor.pair($('host').value, $('auto-confirm').checked, $('control-profile').value), true); });
 $('reconnect').addEventListener('click', () => void act(() => window.monitor.reconnect($('host').value), true));
 $('forget').addEventListener('click', () => void act(() => window.monitor.forget()));
-document.querySelectorAll('[data-source]').forEach(button => button.addEventListener('click', () => void act(() => window.monitor.switch(button.dataset.source))));
 $('refresh-picture').addEventListener('click', () => void act(() => window.monitor.refreshInformation()));
 $('refresh-information').addEventListener('click', () => void act(() => window.monitor.refreshInformation()));
 $('save-association').addEventListener('click', () => void act(() => window.monitor.associateComputer($('computer-input').value, $('computer-display').value)));
@@ -189,3 +190,15 @@ $('save-controls').onclick=()=>void act(()=>window.monitor.setControlProfile($('
 function selectNavigation(page){document.querySelectorAll('[data-page]').forEach(b=>{const active=b.dataset.page===page;b.classList.toggle('active',active);if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});const b=document.querySelector(`[data-page="${page}"]`);if(b)Motion.navigation(b);}
 settings.addEventListener('close',()=>selectNavigation(currentPage));
 requestAnimationFrame(()=>{selectNavigation(currentPage);requestAnimationFrame(()=>document.body.classList.add('motion-ready'));});
+
+function layoutInputs(){const n=state?.sources.length||1,w=$('input-list').clientWidth;const columns=n<=3?n:w>=660?Math.ceil(n/Math.ceil(n/4)):2;$('input-list').style.setProperty('--input-columns',columns);}
+new ResizeObserver(layoutInputs).observe($('input-list'));
+function renderInputPreferences(){
+ $('input-preferences').replaceChildren(...(state?.sources||[]).map(source=>{
+ const form=document.createElement('div');form.className='input-preference';
+ const label=document.createElement('label');label.textContent=source.label;const name=document.createElement('input');name.maxLength=60;name.placeholder='Local input label';name.setAttribute('aria-label',`Label for ${source.label}`);name.value=source.label;
+ const badge=document.createElement('select');badge.setAttribute('aria-label',`Audio return label for ${source.label}`);for(const [value,text] of [['','No local badge'],['arc','ARC'],['earc','eARC']]){const o=document.createElement('option');o.value=value;o.textContent=text;badge.append(o);}badge.value=source.audioReturnSource==='configured'?source.audioReturn:'';
+ const save=document.createElement('button');save.type='button';save.textContent='Save label';save.setAttribute('aria-label',`Save label for ${source.label}`);const target=state.deviceId;save.onclick=()=>{if(target!==state.deviceId)return;void act(()=>window.monitor.configureInput(source.key,{label:name.value,audioReturn:badge.value}));};
+ label.append(name);form.append(label,badge,save);return form;
+ }));if(!state?.sources.length)$('input-preferences').textContent='Connect the display to edit its reported inputs.';
+}

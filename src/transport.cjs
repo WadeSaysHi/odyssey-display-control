@@ -149,7 +149,7 @@ class Remote {
 
 class Mobile {
   constructor(host, pin) {
-    this.host = host; this.pin = pin; this.pending = new Map(); this.seq = 0;
+    this.host = host; this.pin = pin; this.pending = new Map(); this.seq = 0; this.version='0.1';
   }
   async connect() {
     if (this.ws?.readyState === WebSocket.OPEN && this.ready) return;
@@ -158,7 +158,7 @@ class Mobile {
     return this.connecting;
   }
   open() {
-    this.close();
+    this.close(); this.version='0.1';
     return new Promise((resolve, reject) => {
       let settled = false;
       const finish = error => {
@@ -187,7 +187,10 @@ class Mobile {
           if (['ms.channel.unauthorized', 'ms.channel.timeOut', 'ms.error'].includes(m.event)) return finish(fail('PAIRING'));
           if (m.event !== EVENT) return;
           const d = typeof m.data === 'string' ? JSON.parse(m.data) : m.data;
-          if (d?.id === 'notify.service.status' && d.response?.status === 'ready') finish();
+          if (d?.id === 'notify.service.status' && d.response?.status === 'ready') {
+            if(typeof d.version==='string'&&/^\d{1,2}\.\d{1,2}$/.test(d.version))this.version=d.version;
+            finish();
+          }
           const item = this.pending.get(String(d?.seqId));
           if (item && item.method === d.id) {
             this.pending.delete(String(d.seqId)); clearTimeout(item.timer); item.resolve(d);
@@ -203,7 +206,7 @@ class Mobile {
       const timer = setTimeout(() => { this.pending.delete(seqId); reject(fail('OFFLINE')); }, 6000);
       this.pending.set(seqId, { resolve, reject, timer, method });
       this.ws.send(JSON.stringify({ method: 'ms.channel.emit', params: { event: EVENT, to: 'host',
-        data: JSON.stringify({ version: '0.1', id: method, seqId, params }) } }), error => {
+        data: JSON.stringify({ version: this.version, id: method, seqId, params }) } }), error => {
         if (error) { clearTimeout(timer); this.pending.delete(seqId); reject(fail('OFFLINE')); }
       });
     });

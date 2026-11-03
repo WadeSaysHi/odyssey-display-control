@@ -1,11 +1,7 @@
 const { EventEmitter } = require('node:events');
 const transport = require('./transport.cjs');
 const { Information } = require('./information.cjs');
-const PORTS = {
-  USB_C: { key: 'usb-c', label: 'USB-C', ip: 'USB-C' },
-  DISPLAYPORT: { key: 'displayport', label: 'DisplayPort', ip: 'DISPLAY PORT' },
-  HDMI1: { key: 'hdmi', label: 'HDMI', ip: 'HDMI1' },
-};
+const {parseSources,resolveInput,decorate}=require('./sources.cjs');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const messages = {
   TARGET: 'The selected display changed. Review the target before trying again.',
@@ -25,21 +21,6 @@ const messages = {
   SETTING_VERIFY: 'The monitor did not confirm the requested setting. Refresh to check its actual value.',
   STATE_TRANSITION: 'The monitor is changing state or has locked this control. Refresh and try again.',
 };
-function parseSources(answer) {
-  if (String(answer?.statusCode) !== '100' || !Array.isArray(answer.response)) throw transport.fail('PROTOCOL');
-  const sources = [];
-  for (const item of answer.response) {
-    if (typeof item.sourceId !== 'string') continue;
-    const suffix = item.sourceId.split('@').pop();
-    const port = PORTS[suffix] || (/^HDMI[2-4]$/.test(suffix) ? { key: suffix.toLowerCase(), label: `HDMI ${suffix.slice(-1)}`, ip: suffix } : /^DISPLAYPORT[12]$/.test(suffix) ? { key: suffix.toLowerCase(), label: `DisplayPort ${suffix.slice(-1)}`, ip: null } : null);
-    if (!port) continue;
-    if (sources.some(x => x.key === port.key)) throw transport.fail('PROTOCOL');
-    sources.push({ ...port, id: item.sourceId, current: String(item.currentSource).toLowerCase() === 'true' });
-  }
-  if (!sources.length || sources.filter(x => x.current).length > 1) throw transport.fail('PROTOCOL');
-  return sources;
-}
-
 class Controller extends EventEmitter {
   constructor(store, io = transport, options = {}) {
     super(); this.store = store; this.io = io; this.options = options;
@@ -96,6 +77,7 @@ class Controller extends EventEmitter {
       } finally { clearTimeout(confirmTimer); remote?.close(); }
       if (typeof result.AccessToken !== 'string' || !result.AccessToken) throw transport.fail('PAIRING');
       const record = { ...device, host, ipPin, token: result.AccessToken, autoConfirm: Boolean(options.autoConfirm), controlProfile: ['oled-g8-tested', 'read-only'].includes(options.controlProfile) ? options.controlProfile : this.record?.controlProfile || 'read-only',
+        ...(this.record?.inputPreferences ? { inputPreferences: this.record.inputPreferences } : {}),
         ...(this.record?.association ? { association: this.record.association } : {}),
         ...(this.record?.remoteName ? { remoteName: this.record.remoteName } : {}),
         ...(remote?.token ? { remoteToken: remote.token } : this.record?.remoteToken ? { remoteToken: this.record.remoteToken } : {}) };
@@ -139,11 +121,12 @@ class Controller extends EventEmitter {
         if (device.mobilePin !== this.record.mobilePin) throw transport.fail('CERTIFICATE');
         this.mobile = new this.io.Mobile(this.record.host, this.record.mobilePin);
       }
-      const sources = parseSources(await this.mobile.request('get.extsources'));
+      this.inventory = parseSources(await this.mobile.request('get.extsources'));
+      const sources = decorate(this.inventory,this.record.inputPreferences);
       const current = sources.find(x => x.current)?.key || null;
       if (current !== this.state.current) this.information.invalidate();
-      // Only allow known input keys and labels across the renderer boundary.
-      this.update({ status: 'online', current, sources: sources.map(({ key, label }) => ({ key, label })), updatedAt: Date.now() });
+      // Raw IDs and device titles remain in the main process; expose anonymous handles and labels only.
+      this.update({ status: 'online', current, sources: sources.map(({ key, label, type, audioReturn, audioReturnSource }) => ({ key, label, type, audioReturn, audioReturnSource })), updatedAt: Date.now() });
       return sources;
     } catch (error) {
       this.mobile?.close(); this.mobile = null;
@@ -182,6 +165,16 @@ class Controller extends EventEmitter {
         this.information.report.monitor.error = messages[error.code] || messages.SETTING_VERIFY;
         this.information.publish(); throw error;
       }
+    });
+  }
+  configureInput(key, value) {
+    return this.exclusive(async()=>{
+      if(!this.record)throw transport.fail('PAIRING');
+      if(!this.state.sources.some(s=>s.key===key)||!value||typeof value.label!=='string'||value.label.length>60||/[\x00-\x1f\x7f]/.test(value.label)||!['','arc','earc'].includes(value.audioReturn))throw transport.fail('INVALID_SETTING');
+      const record={...this.record,inputPreferences:{...this.record.inputPreferences,[key]:{label:value.label.trim(),audioReturn:value.audioReturn}}};
+      await this.store.save(record);this.record=record;
+      const sources=decorate(this.inventory||[],record.inputPreferences);
+      this.update({sources:sources.map(({key,label,type,audioReturn,audioReturnSource})=>({key,label,type,audioReturn,audioReturnSource})),message:'Input label saved locally. Monitor settings unchanged.'});
     });
   }
   setControlProfile(value) {
@@ -242,7 +235,8 @@ class Controller extends EventEmitter {
           let agrees = true; independent = false;
           try {
             const tv = await this.io.ipCall(this.record.host, this.record.ipPin, 'getTVStates', this.record.token);
-            if (target.ip) { agrees = tv.inputSource === target.ip; independent = agrees; }
+            const resolved=resolveInput(tv.inputSource,this.inventory);
+            if(resolved!==null){agrees=resolved===target.key;independent=agrees;this.information.report.monitor.inputConflict=resolved!==this.state.current;}
           } catch (error) {
             if (error.code === 'CERTIFICATE') throw error;
             // IP Control can transiently refuse reads during a source transition.
