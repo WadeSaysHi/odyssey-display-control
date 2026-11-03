@@ -45,7 +45,7 @@ class Controller extends EventEmitter {
     this.information = new Information(this, options.queryDisplays);
     this.state.information = this.information.snapshot();
   }
-  snapshot() { return structuredClone(this.state); }
+  snapshot() { return structuredClone({ ...this.state, remoteAvailable: Boolean(this.record?.remoteToken) }); }
   update(patch) { Object.assign(this.state, patch); this.state.information = this.information.snapshot(); this.emit('state', this.snapshot()); }
   async init() {
     this.timer = setInterval(() => void this.poll(), this.options.pollMs || 3000);
@@ -168,14 +168,27 @@ class Controller extends EventEmitter {
       finally { await this.information.read(); }
     });
   }
-  setSetting(key, value) {
+  setSetting(key, value, expectedInput = this.state.current) {
     return this.exclusive(async () => {
-      try { await this.information.set(key, value); }
+      try { await this.information.set(key, value, expectedInput); }
       catch (error) {
         this.information.report.monitor.status = 'unavailable';
         this.information.report.monitor.error = messages[error.code] || messages.SETTING_VERIFY;
         this.information.publish(); throw error;
       }
+    });
+  }
+  remoteKey(key) {
+    return this.exclusive(async () => {
+      if (!['KEY_UP', 'KEY_DOWN', 'KEY_LEFT', 'KEY_RIGHT', 'KEY_ENTER', 'KEY_SOURCE', 'KEY_EXIT'].includes(key)) throw transport.fail('UNSUPPORTED');
+      if (!this.record?.remoteToken) throw transport.fail('PAIRING');
+      const device = await this.io.probe(this.record.host);
+      if (device.identity !== this.record.identity) throw transport.fail('IDENTITY');
+      if (device.mobilePin !== this.record.mobilePin) throw transport.fail('CERTIFICATE');
+      const remote = new this.io.Remote(this.record.host, this.record.mobilePin, this.record.remoteToken, this.record.remoteName);
+      try { await remote.connect(); await remote.sendKey(key); }
+      finally { remote.close(); }
+      this.update({ message: 'Remote key sent. Menu changes cannot be verified by the monitor API.' });
     });
   }
   associateComputer(input, displayKey) {

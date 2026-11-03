@@ -70,3 +70,25 @@ test('failed computer refresh retains the previous timestamp while withdrawing c
   assert.equal(f.info.report.computer.at, at); assert.equal(f.info.report.computer.displays.length, 1);
   assert.equal(f.info.snapshot().fields.resolution.value, 'Unknown'); assert.equal(f.info.snapshot().computerFresh, false);
 });
+test('new readings are sanitized and never expand the writable setting whitelist', async () => {
+  const f = fixture(); const original = f.c.io.ipCall;
+  f.c.io.ipCall = async (...args) => {
+    if (args[2] === 'colorToneControl') return { colorTone: 'Standard' };
+    if (args[2] === 'powerControl') return { power: 'powerOn' };
+    if (args[2] === 'getVideoStates') return { color: 25, tint: 0 };
+    const result = await original(...args);
+    if (args[2] === 'getTVStates') result.speakerSelect = 'untrusted-device-identifier';
+    return result;
+  };
+  await f.info.read(); assert.equal(f.info.report.monitor.values.colorTone, 'Standard');
+  assert.equal(f.info.report.monitor.values.tint, 0); assert.equal(f.info.report.monitor.values.speakerOutput, null);
+  assert.equal(f.info.report.monitor.values.power, 'On');
+  for (const key of ['color', 'tint', 'colorTone', 'power', 'speakerOutput']) await assert.rejects(f.info.set(key, 1), { code: 'INVALID_SETTING' });
+  assert.equal(f.writes(), 0);
+});
+test('external input change before Apply cannot retarget an old input draft', async () => {
+  const f = fixture();
+  f.c.refresh = async () => { f.c.state.current = 'hdmi'; };
+  await assert.rejects(f.info.set('volume', 6, 'usb-c'), { code: 'SETTING_CONTEXT' });
+  assert.equal(f.writes(), 0);
+});

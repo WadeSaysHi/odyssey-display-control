@@ -75,3 +75,12 @@ test('serializes commands and keeps secrets out of snapshots', async () => {
   assert.equal((await f.c.switchSource('hdmi')).code, 'BUSY'); await first;
   const snapshot = JSON.stringify(f.c.snapshot()); assert.ok(!snapshot.includes('secret')); assert.ok(!snapshot.includes('source.layer'));
 });
+test('remote keys enforce the whitelist and device identity before sending', async () => {
+  const f = fixture(); let sent = 0; f.c.record.remoteToken = 'fixture';
+  f.c.io.Remote = class { async connect() {} async sendKey() { sent++; } close() {} };
+  assert.equal((await f.c.remoteKey('KEY_POWER')).code, 'UNSUPPORTED'); assert.equal(sent, 0);
+  f.options.wrongIdentity = true; assert.equal((await f.c.remoteKey('KEY_ENTER')).code, 'IDENTITY'); assert.equal(sent, 0);
+  f.options.wrongIdentity = false; assert.equal((await f.c.remoteKey('KEY_EXIT')).ok, true); assert.equal(sent, 1);
+  assert.match(f.c.state.message, /cannot be verified/);
+  assert.ok(!JSON.stringify(f.c.snapshot()).includes('remoteToken'));
+});

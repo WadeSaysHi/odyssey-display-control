@@ -131,6 +131,13 @@ class Remote {
       });
     });
   }
+  sendKey(key) {
+    if (!['KEY_UP', 'KEY_DOWN', 'KEY_LEFT', 'KEY_RIGHT', 'KEY_ENTER', 'KEY_SOURCE', 'KEY_EXIT'].includes(key)) return Promise.reject(fail('UNSUPPORTED'));
+    if (this.ws?.readyState !== WebSocket.OPEN) return Promise.reject(fail('OFFLINE'));
+    return new Promise((resolve, reject) => this.ws.send(JSON.stringify({ method: 'ms.remote.control', params: {
+      Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey',
+    } }), error => error ? reject(fail('OFFLINE')) : resolve()));
+  }
   confirmPairing() {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     this.ws.send(JSON.stringify({ method: 'ms.remote.control', params: {

@@ -79,6 +79,8 @@ class Information {
       const input = this.c.state.current;
       if (!input || before.inputSource !== INPUT[input]) throw fail('SETTING_CONTEXT');
       const video = await this.optional('getVideoStates');
+      const tone = await this.optional('colorToneControl');
+      const power = await this.optional('powerControl');
       const controls = {};
       for (const [key, definition] of Object.entries(SETTINGS)) {
         const response = await this.optional(definition.method);
@@ -91,7 +93,10 @@ class Information {
       this.report.monitor = { status: 'fresh', at: Date.now(), attemptedAt, input, error: '', controls,
         values: { pictureMode: text(after.pictureMode), soundMode: text(after.soundMode),
           volume: valid(SETTINGS.volume, after.volume) ? after.volume : null,
-          brightnessRaw: typeof video?.brightness === 'number' ? video.brightness : null } };
+          speakerOutput: /^(internal|external)$/i.test(after.speakerSelect || '') ? after.speakerSelect.toLowerCase() === 'internal' ? 'Internal' : 'External' : null,
+          colorTone: text(tone?.colorTone), color: Number.isFinite(video?.color) ? video.color : null,
+          tint: Number.isFinite(video?.tint) ? video.tint : null,
+          power: power?.power === 'powerOn' ? 'On' : power?.power === 'powerOff' ? 'Off' : null } };
     } catch (error) {
       const contextChanged = error.code === 'SETTING_CONTEXT';
       this.report.monitor = { ...(contextChanged ? empty().monitor : this.report.monitor), status: 'unavailable', attemptedAt,
@@ -104,13 +109,13 @@ class Information {
     await Promise.allSettled([this.readComputer(), this.readMonitor()]);
     this.publish();
   }
-  async set(key, value) {
+  async set(key, value, expectedInput = this.c.state.current) {
     const definition = SETTINGS[key];
     if (!definition || !valid(definition, value)) throw fail('INVALID_SETTING');
     await this.c.refresh();
     const input = this.c.state.current;
     const before = await this.call('getTVStates');
-    if (!input || before.inputSource !== INPUT[input]) throw fail('SETTING_CONTEXT');
+    if (!input || input !== expectedInput || before.inputSource !== INPUT[input]) throw fail('SETTING_CONTEXT');
     const getter = await this.call(definition.method);
     if (!valid(definition, getter[definition.field])) throw fail('UNSUPPORTED');
     await this.call(definition.method, { [definition.field]: value });

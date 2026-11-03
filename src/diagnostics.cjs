@@ -36,7 +36,7 @@ async function diagnose({ win, controller, safeStorage }) {
     })`);
     await win.webContents.executeJavaScript('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');
     report.rendered = await win.webContents.executeJavaScript("document.querySelector('h1').textContent === 'Odyssey OLED G8' && typeof window.require === 'undefined' && !!window.monitor");
-    report.signalSection = await win.webContents.executeJavaScript("document.querySelectorAll('.signal-item').length === 7 && !!document.querySelector('#refresh-information')");
+    report.signalSection = await win.webContents.executeJavaScript("document.querySelectorAll('.signal-item').length === 5 && !!document.querySelector('#refresh-information')");
     await fs.writeFile(path.join(folder, 'desktop.png'), (await win.webContents.capturePage()).toPNG());
   } catch (error) { report.error = error.code || 'DIAGNOSTIC_FAILURE'; }
   finally {

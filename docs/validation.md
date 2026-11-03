@@ -27,10 +27,18 @@ Auto-confirm is limited to a pairing request initiated by this app, after a remo
 
 Builds are unsigned and not notarized. Gatekeeper or SmartScreen may require approval, and unsigned macOS updates may prompt for Keychain access again. Credentials stay in the OS-protected local profile; raw research, network addresses and device metadata are not included in this repository or release bundles.
 
-Development uses Anthropic’s frontend-design skill. See [design](design.md). The local protocol was informed by the [MobileBFF reference](https://github.com/TheFab21/ha-samsungtv-smart/blob/master/custom_components/samsungtv_smart/api/mobilebff.py); implementation is independent and constrained to input control.
+Development uses Anthropic’s frontend-design skill. See [design](design.md). The local protocol was informed by the [MobileBFF reference](https://github.com/TheFab21/ha-samsungtv-smart/blob/master/custom_components/samsungtv_smart/api/mobilebff.py); implementation is independent and exposes a small allowlist of input, picture, sound and remote controls.
 
 ## Version 0.2
 
 The signal section and layered settings were tested with live monitor reads. macOS dynamically reported its current resolution and refresh rate. Windows QueryDisplayConfig returned its current target mode in the signed-in desktop session; SSH-session queries were unavailable and were not substituted with static information. Source-association isolation was tested by switching inputs: computer mode data appeared only on the associated input. GamePCHDR remained a picture mode while HDR and VRR stayed Unknown.
 
 Volume, mute, backlight, contrast and sharpness passed small reversible write/read-back tests on hardware and were restored. The volume form also passed an actual desktop UI write/restore test. Failed-query retention, expiration, input-context changes during writes, and refusal to accept command echoes are covered by regression tests. Gamma and HDR tone-mapping methods returned -32601. Full control ranges, panel-luminance calibration, and a controlled PS5 CEC experiment remain unverified. See [signal/settings semantics](information-and-settings.md).
+
+## Version 0.3
+
+The three-pane UI, volume-wheel keyboard/drag/click behavior, retained drafts, input-change reset, stale-data disabling, Bright/Night/System persistence, overlay-scrollbar dragging and keyboard access, reduced motion and forced-colors fallback pass automated UI tests on macOS and the Windows packaged app. Thirty controller, telemetry, storage and preference tests pass on both platforms.
+
+Live macOS tests passed volume-wheel and mute changes, a contrast-slider change, read-back and restoration; all three direct inputs; second-client switching without automatic reversal; and an authorized Remote Exit command. Newly queried color tone, color level, tint, speaker output and power state are read-only. Remote command transport success does not prove a menu changed. The expected input is carried with each UI setting write; an external input change before Apply reaches the controller rejects that draft.
+
+The packaged Windows app was also launched in the signed-in interactive desktop: DPAPI encryption, storage round-trip, UI rendering, live monitor input read, OS output query and the signal panel passed. This does not replace the still-unverified Windows first-pairing and deliberate PS5 CEC tests. Bright/night screenshots were reviewed; release bundles and public files were checked for private metadata.

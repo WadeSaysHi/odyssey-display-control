@@ -8,13 +8,10 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <header>
-      <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="17" rx="4"/><path d="M12 28h8M16 23v5"/></svg><div><h1>Odyssey OLED G8</h1><p>Input control</p></div></div>
-      <button id="connection" class="connection"><span id="dot" class="dot"></span><span id="connection-label">Set up connection</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button>
-    </header>
-
-    <section class="stage" aria-label="Monitor status">
+<aside class="sidebar"><div class="window-drag"></div><div class="device-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/></svg></div><h1>Odyssey OLED G8</h1><p class="side-note">Monitor controller</p><nav aria-label="Settings"><button data-page="monitor" class="active" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/></svg><span>Monitor</span></button><button data-page="picture"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/></svg><span>Picture</span></button><button data-page="remote"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="9" r="2"/><path d="M10 16h4"/></svg><span>Remote</span></button><button data-page="device"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.01"/></svg><span>Device</span></button><button data-page="connection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 15 6-6m-7 3-2 2a4 4 0 0 0 6 6l2-2m-2-12 2-2a4 4 0 0 1 6 6l-2 2"/></svg><span>Connection</span></button><button data-page="appearance"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16Z"/></svg><span>Appearance</span></button></nav><p id="sidebar-status" class="sidebar-status">Local network control</p></aside>
+<div class="workspace"><header class="toolbar"><strong id="page-name">Monitor</strong><div class="toolbar-actions"><button id="connection" class="connection"><span id="dot" class="dot"></span><span id="connection-label">Set up connection</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button><button id="theme-toggle" class="icon-button" aria-label="Toggle bright and night appearance">◐</button></div></header>
+<div class="scroll-shell"><main id="content" tabindex="0" aria-label="Monitor settings">
+<section data-panel="monitor"><section class="stage" aria-label="Monitor status">
       <div class="monitor-art" aria-hidden="true"><div class="bezel"><div class="screen"><div class="screen-orbit"></div><div class="screen-glow"></div><span id="screen-label">G8</span></div><span class="power-led"></span></div><div class="stand"></div><div class="foot"></div></div>
       <p class="current-label" id="current-label">Your monitor, within reach</p>
       <h2 id="current">Choose where you work or play.</h2>
@@ -30,7 +27,7 @@
     <section class="signal-panel" aria-labelledby="signal-heading">
       <div class="panel-heading"><h2 id="signal-heading">Input Signal Information</h2><button id="refresh-information" class="secondary">Refresh</button></div>
       <div class="signal-grid" id="signal-grid"></div>
-      <p class="signal-note">Hz describes the queried display mode, not real-time FPS. Monitor live timing, VRR and HDR remain unknown without a verified query.</p>
+      <p class="signal-note">Computer values apply only to its associated input. Hz describes the OS output mode, not real-time FPS; monitor timing is unverified.</p>
       <div class="query-status"><span id="monitor-query-status">Monitor: not queried</span><span id="computer-query-status">This Computer: not queried</span></div>
       <p id="information-error" class="query-error" role="status"></p>
       <details class="computer-details"><summary>This Computer output and input association</summary>
@@ -39,15 +36,15 @@
         <div class="association-row"><label>Connected input<select id="computer-input"><option value="">Not associated</option><option value="usb-c">USB-C</option><option value="displayport">DisplayPort</option><option value="hdmi">HDMI</option></select></label><label>Local display<select id="computer-display"></select></label><button id="save-association" class="secondary">Save association</button></div>
       </details>
     </section>
-    <section class="layered-settings" aria-label="Monitor settings">
-      <details><summary>Sound and volume<span>Monitor</span></summary><div id="sound-controls" class="control-grid"></div></details>
-      <details><summary>Picture<span>Monitor</span></summary><p class="hint">Backlight is the monitor’s raw API scale. It has not been calibrated to panel luminance or the monitor menu’s brightness label. Changes apply to the current input.</p><div id="picture-controls" class="control-grid"></div></details>
-      <details><summary>Advanced capabilities<span>Monitor</span></summary><div class="capability-row"><span>Brightness (raw API)</span><strong id="brightness-raw">Unknown</strong></div><p class="hint">A raw brightness value is not verified panel brightness.</p><div class="capability-row"><span>Gamma</span><strong>Unavailable</strong></div><div class="capability-row"><span>HDR tone mapping</span><strong>Unavailable</strong></div><p class="hint">Gamma and HDR tone-mapping methods were not exposed during hardware testing. Picture-mode and sound-mode option lists are unavailable, so these modes are read-only.</p></details>
     </section>
-    <footer><span>Local network only</span><span id="verification">Every switch is checked on the monitor</span></footer>
-  </main>
-
-  <dialog id="settings" aria-labelledby="settings-title">
+<section data-panel="picture" hidden><h2 class="page-heading">Picture</h2><p class="page-description">Adjust the current input, with monitor read-back after each change.</p><div class="panel-heading picture-heading"><h3>Picture adjustments</h3><button id="refresh-picture" class="secondary">Refresh</button></div><p id="picture-status" class="hint" role="status"></p><p class="hint">Backlight is the raw API scale, not calibrated luminance or a confirmed match to the monitor menu’s brightness label.</p><div id="picture-controls" class="group"></div><h3>Color and mode <span>Read-only · Monitor</span></h3><div id="picture-readings" class="group"></div><p class="hint">Color, tint, tone and mode changes have not been verified.</p></section>
+<section data-panel="remote" hidden><h2 class="page-heading">Remote</h2><p class="page-description">Navigate the monitor’s menus.</p><div class="remote-pad"><button data-key="KEY_UP" class="up" aria-label="Navigate up">⌃</button><button data-key="KEY_LEFT" class="left" aria-label="Navigate left">‹</button><button data-key="KEY_ENTER" class="ok">OK</button><button data-key="KEY_RIGHT" class="right" aria-label="Navigate right">›</button><button data-key="KEY_DOWN" class="down" aria-label="Navigate down">⌄</button></div><div class="remote-extra"><button data-key="KEY_SOURCE">Input menu</button><button data-key="KEY_EXIT">Exit menu</button></div><p id="remote-note" class="hint centered">Pair the authorized remote connection first.</p><p class="hint centered">Commands are sent once. The API cannot verify menu focus or the effect of each key.</p></section>
+<section data-panel="device" hidden><h2 class="page-heading">Device</h2><p class="page-description">Current monitor state and available controls.</p><div id="device-readings" class="group"></div><h3>Control coverage</h3><div class="group"><div class="row"><div><strong>Input selection</strong><p>Direct switching with fresh monitor confirmation</p></div><span>Verified</span></div><div class="row"><div><strong>Volume and mute</strong><p>Changes checked by two fresh reads</p></div><span>Verified</span></div><div class="row"><div><strong>Color and sound modes</strong><p>Queried values; changes unverified</p></div><span>Read-only</span></div></div><p class="hint">Standby/wake, deliberate PS5 CEC switching and long-term stability remain unverified. Equalizer, balance, audio delay, network playback and firmware information have no verified interface in this app.</p></section>
+<section data-panel="appearance" hidden><h2 class="page-heading">Appearance</h2><p class="page-description">A comfortable view, day or night.</p><div class="appearance-options"><button data-theme="light"><span class="theme-swatch bright"></span>Bright</button><button data-theme="dark"><span class="theme-swatch night"></span>Night</button><button data-theme="system"><span class="theme-swatch system"></span>System</button></div><div class="group"><label class="row"><div><strong>Always show scroll indicators</strong><p>Keep the indicator visible when content extends below the window</p></div><input type="checkbox" id="always-scrollbars"></label><div class="row"><div><strong>Motion</strong><p>Short feedback animations; follows system reduced-motion preferences</p></div><span>Moderate</span></div></div><p id="appearance-message" class="hint" role="status"></p></section>
+</main><div id="scroll-rail" class="scroll-rail" role="scrollbar" aria-label="Scroll settings" aria-controls="content" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><div class="scroll-thumb"></div></div></div>
+<footer><span id="verification">Every switch is checked on the monitor</span><span>Local network only</span></footer></div>
+<aside class="inspector"><div class="inspector-heading"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg><h2>Sound</h2><span>Monitor</span></div><div class="wheel-wrap"><div id="volume-wheel" class="wheel" role="spinbutton" tabindex="0" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-disabled="true"><div class="wheel-selection"></div><div id="wheel-lines" class="wheel-lines"></div></div><p class="wheel-label">Volume · Monitor · 0–100</p></div><button id="apply-volume" class="primary" disabled>Apply volume</button><p id="volume-draft" role="status" class="draft-label">Waiting for monitor</p><div class="row mute-row"><div><strong>Mute</strong><p>Monitor sound</p></div><button id="mute" class="toggle" role="switch" aria-label="Mute" aria-checked="false" disabled></button></div><div id="sound-readings"></div><p class="hint wheel-help">Scroll, drag or use arrow keys.<br>Apply confirms the value on the monitor.</p></aside>
+<dialog id="settings" aria-labelledby="settings-title">
     <form id="settings-form">
       <div class="sheet-heading"><div><h2 id="settings-title">Monitor connection</h2><p>Keep your monitor and computer on the same network.</p></div><button type="button" id="close" class="icon-button" aria-label="Close connection settings">×</button></div>
       <label for="host">Monitor IP address</label>
@@ -61,7 +58,4 @@
       <p class="hint">Self-signed monitor certificates are pinned on first pairing. Pair only on a trusted local network.</p>
     </form>
   </dialog>
-  <script src="information.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+  <script src="information.js"></script><script src="app.js"></script><script src="scroll.js"></script></body></html>

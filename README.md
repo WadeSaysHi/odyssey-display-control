@@ -8,7 +8,7 @@ Credentials and connection details are encrypted using macOS Keychain or Windows
 
 **Auto-confirm pairing** uses an authorized remote connection to send one OK when this app’s pairing request remains pending. First remote approval is manual. This is timing-based; it does not inspect or dismiss unrelated monitor dialogs. Disable it in connection settings if preferred.
 
-Compact signal information identifies Monitor and This Computer sources, with timestamps and Refresh. Layered sound and picture settings verify writes by read-back. HDR, VRR, gamma and tone-mapping limitations are explicit. [Details](docs/information-and-settings.md).
+A three-pane window keeps the animated volume wheel beside input and picture settings. Bright, Night and System appearance include subtle scroll indicators. Signal readings identify Monitor or This Computer, with timestamps and Refresh. Supported writes require read-back; new color and sound-output readings stay read-only. Unsupported capability rows are omitted. [Details](docs/information-and-settings.md).
 
 ## Run
 
